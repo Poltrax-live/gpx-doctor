@@ -211,4 +211,170 @@ RSpec.describe GpxDoctor::Parser do
       expect(wpt.to_h[:name]).to eq('Waypoint 1')
     end
   end
+
+  # -------------------------------------------------------------------
+  # Fixture: gory.gpx  (GPX 1.1 — ridewithgps route with metadata)
+  # -------------------------------------------------------------------
+  context 'with gory.gpx fixture' do
+    let(:gory_path)   { File.expand_path('../fixtures/gory.gpx', __dir__) }
+    let(:gory_result) { described_class.parse(gory_path) }
+
+    it 'parses without errors' do
+      expect(gory_result).to be_a(GpxDoctor::Parser::Result)
+    end
+
+    it 'has no waypoints or routes' do
+      expect(gory_result.waypoints).to be_empty
+      expect(gory_result.routes).to be_empty
+    end
+
+    it 'has one track' do
+      expect(gory_result.tracks.length).to eq(1)
+    end
+
+    it 'has the correct track name' do
+      expect(gory_result.tracks.first.name).to eq('PBT Gory 25 bjazd1')
+    end
+
+    it 'has one segment with 10 636 track points' do
+      track = gory_result.tracks.first
+      expect(track.segments.length).to eq(1)
+      expect(track.points.length).to eq(10_636)
+    end
+
+    it 'has correct first track point coordinates' do
+      pt = gory_result.tracks.first.points.first
+      expect(pt.lat).to be_within(0.0001).of(49.560812)
+      expect(pt.lon).to be_within(0.0001).of(22.214311)
+      expect(pt.ele).to be_within(0.1).of(286.2)
+    end
+
+    it 'has correct last track point coordinates' do
+      pt = gory_result.tracks.first.points.last
+      expect(pt.lat).to be_within(0.0001).of(49.679316)
+      expect(pt.lon).to be_within(0.0001).of(19.201696)
+      expect(pt.ele).to be_within(0.1).of(354.8)
+    end
+
+    it 'reports total points equal to track points' do
+      expect(gory_result.points.length).to eq(10_636)
+    end
+
+    describe 'metadata' do
+      subject(:meta) { gory_result.metadata }
+
+      it 'is present' do
+        expect(meta).to be_a(GpxDoctor::Models::Metadata)
+      end
+
+      it 'has name' do
+        expect(meta.name).to eq('PBT Gory 25 bjazd1')
+      end
+
+      it 'has time' do
+        expect(meta.time).to be_a(Time)
+        expect(meta.time.utc.year).to eq(2025)
+      end
+
+      it 'has a link' do
+        expect(meta.links.length).to eq(1)
+        expect(meta.links.first.href).to eq('https://ridewithgps.com/routes/51348715')
+        expect(meta.links.first.text).to eq('PBT Gory 25 bjazd1')
+      end
+    end
+  end
+
+  # -------------------------------------------------------------------
+  # Fixture: aus.gpx  (GPX 1.1 — Strava export with timed track points)
+  # -------------------------------------------------------------------
+  context 'with aus.gpx fixture' do
+    let(:aus_path)   { File.expand_path('../fixtures/aus.gpx', __dir__) }
+    let(:aus_result) { described_class.parse(aus_path) }
+
+    it 'parses without errors' do
+      expect(aus_result).to be_a(GpxDoctor::Parser::Result)
+    end
+
+    it 'has no waypoints or routes' do
+      expect(aus_result.waypoints).to be_empty
+      expect(aus_result.routes).to be_empty
+    end
+
+    it 'has one track named Morning Hike' do
+      expect(aus_result.tracks.length).to eq(1)
+      expect(aus_result.tracks.first.name).to eq('Morning Hike')
+    end
+
+    it 'has one segment with 12 954 track points' do
+      track = aus_result.tracks.first
+      expect(track.segments.length).to eq(1)
+      expect(track.points.length).to eq(12_954)
+    end
+
+    it 'has correct first track point coordinates and time' do
+      pt = aus_result.tracks.first.points.first
+      expect(pt.lat).to be_within(0.0001).of(-33.799143)
+      expect(pt.lon).to be_within(0.0001).of(151.283918)
+      expect(pt.ele).to be_within(0.1).of(3.6)
+      expect(pt.time).to be_a(Time)
+      expect(pt.time.utc.year).to eq(2021)
+    end
+
+    it 'has correct last track point coordinates' do
+      pt = aus_result.tracks.first.points.last
+      expect(pt.lat).to be_within(0.0001).of(-33.600483)
+      expect(pt.lon).to be_within(0.0001).of(151.125633)
+      expect(pt.ele).to be_within(0.1).of(1.6)
+    end
+
+    it 'reports total points equal to track points' do
+      expect(aus_result.points.length).to eq(12_954)
+    end
+
+    describe 'metadata' do
+      subject(:meta) { aus_result.metadata }
+
+      it 'is present' do
+        expect(meta).to be_a(GpxDoctor::Models::Metadata)
+      end
+
+      it 'has time' do
+        expect(meta.time).to be_a(Time)
+        expect(meta.time.utc.year).to eq(2021)
+      end
+
+      it 'has no name' do
+        expect(meta.name).to be_nil.or eq('')
+      end
+    end
+  end
+
+  # -------------------------------------------------------------------
+  # Fixture: 3hunt.gpx  (GPX 1.0 — different namespace)
+  # The parser only recognises the GPX 1.1 namespace, so the file
+  # should still parse without error but yield no elements.
+  # -------------------------------------------------------------------
+  context 'with 3hunt.gpx fixture (GPX 1.0)' do
+    let(:hunt_path)   { File.expand_path('../fixtures/3hunt.gpx', __dir__) }
+    let(:hunt_result) { described_class.parse(hunt_path) }
+
+    it 'parses without raising an error' do
+      expect { hunt_result }.not_to raise_error
+    end
+
+    it 'returns a Result object' do
+      expect(hunt_result).to be_a(GpxDoctor::Parser::Result)
+    end
+
+    it 'returns empty collections for a GPX 1.0 file' do
+      expect(hunt_result.waypoints).to be_empty
+      expect(hunt_result.routes).to be_empty
+      expect(hunt_result.tracks).to be_empty
+      expect(hunt_result.points).to be_empty
+    end
+
+    it 'has no metadata' do
+      expect(hunt_result.metadata).to be_nil
+    end
+  end
 end
