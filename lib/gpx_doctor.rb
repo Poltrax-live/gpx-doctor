@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-require "gpx_doctor/version"
-require "gpx_doctor/configuration"
-require "gpx_doctor/models/email"
-require "gpx_doctor/models/link"
-require "gpx_doctor/models/copyright"
-require "gpx_doctor/models/person"
-require "gpx_doctor/models/bounds"
-require "gpx_doctor/models/waypoint"
-require "gpx_doctor/models/metadata"
-require "gpx_doctor/models/track_segment"
-require "gpx_doctor/models/route"
-require "gpx_doctor/models/track"
-require "gpx_doctor/parser"
+require 'gpx_doctor/version'
+require 'gpx_doctor/configuration'
+require 'gpx_doctor/models/email'
+require 'gpx_doctor/models/link'
+require 'gpx_doctor/models/copyright'
+require 'gpx_doctor/models/person'
+require 'gpx_doctor/models/bounds'
+require 'gpx_doctor/models/waypoint'
+require 'gpx_doctor/models/metadata'
+require 'gpx_doctor/models/track_segment'
+require 'gpx_doctor/models/route'
+require 'gpx_doctor/models/track'
+require 'gpx_doctor/parser'
 
 module GpxDoctor
   class << self
