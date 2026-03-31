@@ -48,6 +48,7 @@ module GpxDoctor
       )
 
       enhance_elevations(result) if GpxDoctor.configuration.elevation_server
+      enhance_statistics(result) if GpxDoctor.configuration.statistics
 
       result
     end
@@ -213,6 +214,14 @@ module GpxDoctor
 
     def enhance_elevations(result)
       ElevationClient.new.enhance(result.points)
+    end
+
+    def enhance_statistics(result)
+      enhancer = StatisticsEnhancer.new
+      result.routes.each { |route| enhancer.enhance(route.points) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| enhancer.enhance(seg.points) }
+      end
     end
   end
 end

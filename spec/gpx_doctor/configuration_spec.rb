@@ -21,6 +21,10 @@ RSpec.describe GpxDoctor::Configuration do
     it 'sets elevation_server_password to nil' do
       expect(config.elevation_server_password).to be_nil
     end
+
+    it 'sets statistics to false' do
+      expect(config.statistics).to eq(false)
+    end
   end
 
   describe 'custom values via configure block' do
@@ -30,6 +34,7 @@ RSpec.describe GpxDoctor::Configuration do
         c.elevation_server_url      = 'https://elevation.example.com'
         c.elevation_server_user     = 'user'
         c.elevation_server_password = 'secret'
+        c.statistics                = true
       end
     end
 
@@ -48,6 +53,10 @@ RSpec.describe GpxDoctor::Configuration do
     it 'stores elevation_server_password' do
       expect(GpxDoctor.configuration.elevation_server_password).to eq('secret')
     end
+
+    it 'stores statistics' do
+      expect(GpxDoctor.configuration.statistics).to eq(true)
+    end
   end
 
   describe '.reset_configuration!' do
@@ -59,6 +68,7 @@ RSpec.describe GpxDoctor::Configuration do
     it 'resets to defaults' do
       expect(GpxDoctor.configuration.elevation_server_url).to be_nil
       expect(GpxDoctor.configuration.elevation_server).to eq(false)
+      expect(GpxDoctor.configuration.statistics).to eq(false)
     end
   end
 end

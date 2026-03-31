@@ -13,6 +13,7 @@ require 'gpx_doctor/models/track_segment'
 require 'gpx_doctor/models/route'
 require 'gpx_doctor/models/track'
 require 'gpx_doctor/elevation_client'
+require 'gpx_doctor/statistics_enhancer'
 require 'gpx_doctor/parser'
 
 module GpxDoctor
