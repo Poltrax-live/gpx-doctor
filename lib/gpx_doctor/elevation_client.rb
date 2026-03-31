@@ -9,7 +9,8 @@ module GpxDoctor
     MAX_REQUEST_LINE_BYTES = 1024
     LOOKUP_PATH = '/api/v1/lookup'
 
-    def initialize(config = GpxDoctor.configuration)
+    def initialize(config = nil)
+      config    = config || GpxDoctor.configuration
       @base_url = config.elevation_server_url
       @user     = config.elevation_server_user
       @password = config.elevation_server_password
