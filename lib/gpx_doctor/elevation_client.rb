@@ -75,13 +75,11 @@ module GpxDoctor
       response = http.request(request)
 
       unless response.is_a?(Net::HTTPSuccess)
-        warn "GpxDoctor: Elevation lookup failed (HTTP #{response.code})"
         return Array.new(batch.size)
       end
 
       parse_response(response.body, batch.size)
     rescue StandardError => e
-      warn "GpxDoctor: Elevation lookup error: #{e.message}"
       Array.new(batch.size)
     end
 
