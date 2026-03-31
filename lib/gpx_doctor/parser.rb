@@ -40,12 +40,16 @@ module GpxDoctor
     end
 
     def parse
-      Result.new(
+      result = Result.new(
         waypoints: parse_waypoints,
         routes: parse_routes,
         tracks: parse_tracks,
         metadata: parse_metadata
       )
+
+      enhance_elevations(result) if GpxDoctor.configuration.elevation_server
+
+      result
     end
 
     private
@@ -205,6 +209,10 @@ module GpxDoctor
         maxlat: bounds_el['maxlat'].to_f,
         maxlon: bounds_el['maxlon'].to_f
       )
+    end
+
+    def enhance_elevations(result)
+      ElevationClient.new.enhance(result.points)
     end
   end
 end
