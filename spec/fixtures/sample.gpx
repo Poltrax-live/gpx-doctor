@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GPX Doctor Test"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+
+  <metadata>
+    <name>Sample GPX</name>
+    <desc>A sample GPX file for testing</desc>
+    <author>
+      <name>Jane Doe</name>
+      <email id="jane" domain="example.com"/>
+      <link href="https://example.com/jane">
+        <text>Jane's page</text>
+        <type>text/html</type>
+      </link>
+    </author>
+    <copyright author="Jane Doe">
+      <year>2024</year>
+      <license>https://creativecommons.org/licenses/by/4.0/</license>
+    </copyright>
+    <link href="https://example.com/gpx">
+      <text>Source</text>
+    </link>
+    <time>2024-06-01T12:00:00Z</time>
+    <keywords>test, sample, gpx</keywords>
+    <bounds minlat="48.0" minlon="16.0" maxlat="49.0" maxlon="17.0"/>
+  </metadata>
+
+  <wpt lat="48.2093723" lon="16.356099">
+    <ele>160.0</ele>
+    <time>2024-06-01T08:00:00Z</time>
+    <name>Waypoint 1</name>
+    <desc>A standalone waypoint</desc>
+    <sym>Flag, Blue</sym>
+    <type>Waypoint</type>
+  </wpt>
+
+  <rte>
+    <name>Route 1</name>
+    <desc>A sample route</desc>
+    <number>1</number>
+    <rtept lat="48.2100000" lon="16.3600000">
+      <ele>155.0</ele>
+      <name>Route Point 1</name>
+    </rtept>
+    <rtept lat="48.2200000" lon="16.3700000">
+      <ele>162.0</ele>
+      <name>Route Point 2</name>
+    </rtept>
+  </rte>
+
+  <trk>
+    <name>Track 1</name>
+    <desc>A sample track</desc>
+    <number>1</number>
+    <trkseg>
+      <trkpt lat="48.2300000" lon="16.3800000">
+        <ele>170.0</ele>
+        <time>2024-06-01T09:00:00Z</time>
+      </trkpt>
+      <trkpt lat="48.2400000" lon="16.3900000">
+        <ele>175.0</ele>
+        <time>2024-06-01T09:05:00Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+
+</gpx>
