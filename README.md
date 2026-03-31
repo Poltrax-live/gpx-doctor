@@ -183,6 +183,51 @@ result.metadata  # => #<Metadata …>  (or nil)
 | `maxlat` | Float |
 | `maxlon` | Float |
 
+## Development
+
+### Building the gem
+
+```bash
+gem build gpx_doctor.gemspec
+```
+
+This produces a file like `gpx_doctor-0.1.0.gem` in the current directory.
+
+### Running tests
+
+```bash
+bundle install
+bundle exec rspec
+```
+
+### Publishing to RubyGems
+
+1. **Create an account** at <https://rubygems.org> if you don't have one.
+
+2. **Set up credentials** (one-time):
+
+   ```bash
+   gem signin
+   ```
+
+   This stores your API key in `~/.gem/credentials`.
+
+3. **Build and push**:
+
+   ```bash
+   gem build gpx_doctor.gemspec
+   gem push gpx_doctor-0.1.0.gem
+   ```
+
+4. **Verify** the release at `https://rubygems.org/gems/gpx_doctor`.
+
+> **Tip:** Bump `GpxDoctor::VERSION` in `lib/gpx_doctor/version.rb` before each release and tag the commit:
+>
+> ```bash
+> git tag -a v0.1.0 -m "Release 0.1.0"
+> git push origin v0.1.0
+> ```
+
 ## License
 
 MIT
