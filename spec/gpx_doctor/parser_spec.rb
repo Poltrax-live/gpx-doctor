@@ -236,7 +236,7 @@ RSpec.describe GpxDoctor::Parser do
       expect(gory_result.tracks.first.name).to eq('PBT Gory 25 bjazd1')
     end
 
-    it 'has one segment with 10 636 track points' do
+    it 'has one segment with 10_636 track points' do
       track = gory_result.tracks.first
       expect(track.segments.length).to eq(1)
       expect(track.points.length).to eq(10_636)
@@ -305,7 +305,7 @@ RSpec.describe GpxDoctor::Parser do
       expect(aus_result.tracks.first.name).to eq('Morning Hike')
     end
 
-    it 'has one segment with 12 954 track points' do
+    it 'has one segment with 12_954 track points' do
       track = aus_result.tracks.first
       expect(track.segments.length).to eq(1)
       expect(track.points.length).to eq(12_954)
