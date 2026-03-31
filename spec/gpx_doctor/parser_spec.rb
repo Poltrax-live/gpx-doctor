@@ -377,4 +377,89 @@ RSpec.describe GpxDoctor::Parser do
       expect(hunt_result.metadata).to be_nil
     end
   end
+
+  # -------------------------------------------------------------------
+  # Elevation enhancement integration
+  # -------------------------------------------------------------------
+  context 'with elevation server configured' do
+    let(:gpx_without_ele) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <wpt lat="48.2093723" lon="16.356099">
+            <name>No Elevation</name>
+          </wpt>
+          <wpt lat="49.0" lon="17.0">
+            <ele>500.0</ele>
+            <name>Has Elevation</name>
+          </wpt>
+          <trk>
+            <name>Test Track</name>
+            <trkseg>
+              <trkpt lat="50.0" lon="18.0"/>
+            </trkseg>
+          </trk>
+        </gpx>
+      XML
+    end
+
+    before do
+      GpxDoctor.configure do |c|
+        c.elevation_server     = true
+        c.elevation_server_url = 'http://localhost:19292'
+      end
+
+      response_body = {
+        'results' => [
+          { 'latitude' => 48.2093723, 'longitude' => 16.356099, 'elevation' => 171.0 },
+          { 'latitude' => 50.0, 'longitude' => 18.0, 'elevation' => 320.5 }
+        ]
+      }.to_json
+
+      fake_response = instance_double(Net::HTTPOK, body: response_body, code: '200')
+      allow(fake_response).to receive(:is_a?).with(Net::HTTPSuccess).and_return(true)
+      allow_any_instance_of(Net::HTTP).to receive(:request).and_return(fake_response)
+    end
+
+    it 'enhances points without elevation from the elevation server' do
+      result = described_class.parse_string(gpx_without_ele)
+
+      wpt_enhanced = result.waypoints.find { |w| w.name == 'No Elevation' }
+      expect(wpt_enhanced.ele).to eq(171.0)
+    end
+
+    it 'does not overwrite existing elevation values' do
+      result = described_class.parse_string(gpx_without_ele)
+
+      wpt_existing = result.waypoints.find { |w| w.name == 'Has Elevation' }
+      expect(wpt_existing.ele).to eq(500.0)
+    end
+
+    it 'enhances track points without elevation' do
+      result = described_class.parse_string(gpx_without_ele)
+
+      trkpt = result.tracks.first.points.first
+      expect(trkpt.ele).to eq(320.5)
+    end
+  end
+
+  context 'with elevation server disabled (default)' do
+    let(:gpx_without_ele) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <wpt lat="48.0" lon="16.0">
+            <name>No Elevation</name>
+          </wpt>
+        </gpx>
+      XML
+    end
+
+    it 'does not fetch elevation data' do
+      expect_any_instance_of(GpxDoctor::ElevationClient).not_to receive(:enhance)
+
+      result = described_class.parse_string(gpx_without_ele)
+      expect(result.waypoints.first.ele).to be_nil
+    end
+  end
 end
