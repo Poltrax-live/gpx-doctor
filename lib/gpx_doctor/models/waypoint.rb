@@ -8,6 +8,10 @@ module GpxDoctor
         sym type fix sat hdop vdop pdop ageofdgpsdata dgpsid
       ].freeze
 
+      STATISTICS_FIELDS = %i[distance_to_next elevation_change direction].freeze
+
+      attr_accessor(*STATISTICS_FIELDS)
+
       attr_accessor(*FIELDS)
 
       def initialize(**attrs)
@@ -16,7 +20,7 @@ module GpxDoctor
       end
 
       def to_h
-        FIELDS.each_with_object({}) do |field, hash|
+        (FIELDS + STATISTICS_FIELDS).each_with_object({}) do |field, hash|
           value = public_send(field)
           hash[field] = value unless value.nil?
         end

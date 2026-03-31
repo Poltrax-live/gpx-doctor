@@ -14,16 +14,16 @@ module GpxDoctor
     end
 
     class << self
-      def parse(file_path)
+      def parse(file_path, statistics: false)
         xml = File.read(file_path)
-        parse_string(xml)
+        parse_string(xml, statistics: statistics)
       end
 
-      def parse_string(xml_string)
+      def parse_string(xml_string, statistics: false)
         doc = Nokogiri::XML(xml_string)
         ns  = detect_namespace(doc)
 
-        new(doc, ns).parse
+        new(doc, ns, statistics: statistics).parse
       end
 
       private
@@ -34,9 +34,10 @@ module GpxDoctor
       end
     end
 
-    def initialize(doc, ns)
+    def initialize(doc, ns, statistics: false)
       @doc = doc
       @ns  = ns
+      @statistics = statistics
     end
 
     def parse
@@ -48,6 +49,7 @@ module GpxDoctor
       )
 
       enhance_elevations(result) if GpxDoctor.configuration.elevation_server
+      enhance_statistics(result) if @statistics
 
       result
     end
@@ -213,6 +215,14 @@ module GpxDoctor
 
     def enhance_elevations(result)
       ElevationClient.new.enhance(result.points)
+    end
+
+    def enhance_statistics(result)
+      enhancer = StatisticsEnhancer.new
+      result.routes.each { |route| enhancer.enhance(route.points) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| enhancer.enhance(seg.points) }
+      end
     end
   end
 end
