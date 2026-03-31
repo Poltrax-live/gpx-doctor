@@ -20,15 +20,10 @@ module GpxDoctor
       end
 
       def to_h
-        hash = FIELDS.each_with_object({}) do |field, h|
-          value = public_send(field)
-          h[field] = value unless value.nil?
-        end
-        STATISTICS_FIELDS.each do |field|
+        (FIELDS + STATISTICS_FIELDS).each_with_object({}) do |field, hash|
           value = public_send(field)
           hash[field] = value unless value.nil?
         end
-        hash
       end
     end
   end
