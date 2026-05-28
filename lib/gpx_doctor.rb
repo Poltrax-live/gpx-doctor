@@ -14,6 +14,7 @@ require 'gpx_doctor/models/route'
 require 'gpx_doctor/models/track'
 require 'gpx_doctor/elevation_client'
 require 'gpx_doctor/statistics_enhancer'
+require 'gpx_doctor/segment_splitter'
 require 'gpx_doctor/parser'
 
 module GpxDoctor

@@ -49,6 +49,7 @@ module GpxDoctor
       )
 
       enhance_elevations(result) if GpxDoctor.configuration.elevation_server
+      split_segments(result) if @params[:max_distance]
       enhance_statistics(result) if @params[:segment_statistics]
 
       result
@@ -215,6 +216,15 @@ module GpxDoctor
 
     def enhance_elevations(result)
       ElevationClient.new.enhance(result.points)
+    end
+
+    def split_segments(result)
+      splitter = SegmentSplitter.new
+      max_dist = @params[:max_distance]
+      result.routes.each { |route| route.points = splitter.split(route.points, max_dist) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| seg.points = splitter.split(seg.points, max_dist) }
+      end
     end
 
     def enhance_statistics(result)
