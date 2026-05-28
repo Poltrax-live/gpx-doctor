@@ -468,7 +468,7 @@ RSpec.describe GpxDoctor::Parser do
   # -------------------------------------------------------------------
   context 'with statistics enabled' do
     it 'enhances route points with statistics' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       route_pts = result.routes.first.points
 
       expect(route_pts.first.distance_to_next).to be_a(Float)
@@ -481,7 +481,7 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'enhances track segment points with statistics' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       track_pts = result.tracks.first.segments.first.points
 
       expect(track_pts.first.distance_to_next).to be_a(Float)
@@ -493,13 +493,13 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'does not enhance standalone waypoints' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       wpt = result.waypoints.first
       expect(wpt.distance_to_next).to be_nil
     end
 
     it 'includes statistics in to_h' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       h = result.routes.first.points.first.to_h
       expect(h).to have_key(:distance_to_next)
       expect(h).to have_key(:elevation_change)
@@ -507,7 +507,7 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'works with parse_string' do
-      result = described_class.parse_string(fixture_xml, statistics: true)
+      result = described_class.parse_string(fixture_xml, params: { segment_statistics: true })
       route_pts = result.routes.first.points
 
       expect(route_pts.first.distance_to_next).to be_a(Float)
