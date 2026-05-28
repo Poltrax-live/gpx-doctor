@@ -614,5 +614,113 @@ RSpec.describe GpxDoctor::Parser do
       expect(result.tracks.first.segments.first.points.length).to eq(2)
     end
   end
+
+  # -------------------------------------------------------------------
+  # max_points integration
+  # -------------------------------------------------------------------
+  context 'with max_points enabled' do
+    # Ten route points spaced ~111 m apart (0.001 deg lat each step).
+    # Total route distance ≈ 1000 m.  max_points / total ≈ 111 m → no auto max_distance.
+    let(:gpx_ten_points) do
+      rtepts = (0..9).map do |i|
+        lat = (48.0 + i * 0.001).round(4)
+        %(<rtept lat="#{lat}" lon="16.0"><ele>#{100 + i * 10}.0</ele></rtept>)
+      end.join("\n            ")
+
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <name>Test Route</name>
+            #{rtepts}
+          </rte>
+        </gpx>
+      XML
+    end
+
+    it 'reduces route points to max_points' do
+      result = described_class.parse_string(gpx_ten_points, params: { max_points: 4 })
+      expect(result.routes.first.points.length).to eq(4)
+    end
+
+    it 'always keeps first and last point' do
+      result = described_class.parse_string(gpx_ten_points, params: { max_points: 4 })
+      pts = result.routes.first.points
+      expect(pts.first.lat).to be_within(1e-9).of(48.0)
+      expect(pts.last.lat).to be_within(1e-9).of(48.009)
+    end
+
+    it 'does not reduce points when max_points >= number of points' do
+      result = described_class.parse_string(gpx_ten_points, params: { max_points: 20 })
+      expect(result.routes.first.points.length).to eq(10)
+    end
+
+    it 'follows the sequence: max_distance then max_points then segment_statistics' do
+      # Apply max_distance 200 (splits 10-point route) then max_points 5
+      result = described_class.parse_string(
+        gpx_ten_points,
+        params: { max_distance: 200, max_points: 5, segment_statistics: true }
+      )
+      pts = result.routes.first.points
+      expect(pts.length).to eq(5)
+      # Statistics must have been run after max_points selection
+      pts[0...-1].each { |pt| expect(pt.distance_to_next).to be_a(Float) }
+      expect(pts.last.distance_to_next).to be_nil
+    end
+  end
+
+  # -------------------------------------------------------------------
+  # Auto max_distance when max_points ratio > 1000 m
+  # -------------------------------------------------------------------
+  context 'with max_points and auto max_distance' do
+    # Two route points ~11_132 m apart (0.1 deg lat).
+    # With max_points = 5: ratio = 11_132 / 5 ≈ 2226 m > 1000 m
+    # → auto max_distance = 500 m (splits the pair into ~23 segments)
+    # After splitting we get many points; then 5 are selected.
+    let(:gpx_far_two_points) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <name>Long Route</name>
+            <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.1" lon="16.0"><ele>200.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+    end
+
+    it 'auto-applies max_distance 500 and then selects max_points points' do
+      result = described_class.parse_string(gpx_far_two_points, params: { max_points: 5 })
+      pts = result.routes.first.points
+      # Exactly 5 points selected after auto split
+      expect(pts.length).to eq(5)
+    end
+
+    it 'keeps first and last point when auto max_distance is triggered' do
+      result = described_class.parse_string(gpx_far_two_points, params: { max_points: 5 })
+      pts = result.routes.first.points
+      expect(pts.first.lat).to be_within(1e-9).of(48.0)
+      expect(pts.last.lat).to be_within(1e-9).of(48.1)
+    end
+
+    it 'does not auto-apply max_distance when ratio is below 1000 m' do
+      # Two points ~111 m apart; max_points 1 → ratio 111 m < 1000 m → no auto split
+      gpx = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <name>Short Route</name>
+            <rtept lat="48.0"   lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.001" lon="16.0"><ele>110.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+      result = described_class.parse_string(gpx, params: { max_points: 1 })
+      # Only 1 point selected, no intermediate points added
+      expect(result.routes.first.points.length).to eq(1)
+    end
+  end
 end
+
 
