@@ -468,7 +468,7 @@ RSpec.describe GpxDoctor::Parser do
   # -------------------------------------------------------------------
   context 'with statistics enabled' do
     it 'enhances route points with statistics' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       route_pts = result.routes.first.points
 
       expect(route_pts.first.distance_to_next).to be_a(Float)
@@ -481,7 +481,7 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'enhances track segment points with statistics' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       track_pts = result.tracks.first.segments.first.points
 
       expect(track_pts.first.distance_to_next).to be_a(Float)
@@ -493,13 +493,13 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'does not enhance standalone waypoints' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       wpt = result.waypoints.first
       expect(wpt.distance_to_next).to be_nil
     end
 
     it 'includes statistics in to_h' do
-      result = described_class.parse(fixture_path, statistics: true)
+      result = described_class.parse(fixture_path, params: { segment_statistics: true })
       h = result.routes.first.points.first.to_h
       expect(h).to have_key(:distance_to_next)
       expect(h).to have_key(:elevation_change)
@@ -507,7 +507,7 @@ RSpec.describe GpxDoctor::Parser do
     end
 
     it 'works with parse_string' do
-      result = described_class.parse_string(fixture_xml, statistics: true)
+      result = described_class.parse_string(fixture_xml, params: { segment_statistics: true })
       route_pts = result.routes.first.points
 
       expect(route_pts.first.distance_to_next).to be_a(Float)
@@ -525,4 +525,94 @@ RSpec.describe GpxDoctor::Parser do
       expect(route_pts.first.direction).to be_nil
     end
   end
+
+  # -------------------------------------------------------------------
+  # max_distance integration
+  # -------------------------------------------------------------------
+  context 'with max_distance enabled' do
+    let(:gpx_far_points) do
+      # Two route points ~1113 m apart (0.01 deg lat at ~48°)
+      # Two track points ~111 m apart (0.001 deg lat) — below a 200 m limit
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <name>Test Route</name>
+            <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.01" lon="16.0"><ele>200.0</ele></rtept>
+          </rte>
+          <trk>
+            <name>Test Track</name>
+            <trkseg>
+              <trkpt lat="48.0" lon="16.0"><ele>100.0</ele></trkpt>
+              <trkpt lat="48.001" lon="16.0"><ele>110.0</ele></trkpt>
+            </trkseg>
+          </trk>
+        </gpx>
+      XML
+    end
+
+    it 'inserts intermediate points in segments that exceed max_distance' do
+      result = described_class.parse_string(gpx_far_points, params: { max_distance: 200 })
+      route_pts = result.routes.first.points
+
+      # ~1113 m / 200 m → ceil = 6 segments → 5 intermediate → total 7 points
+      expect(route_pts.length).to eq(7)
+      expect(route_pts.first.lat).to be_within(1e-9).of(48.0)
+      expect(route_pts.last.lat).to be_within(1e-9).of(48.01)
+    end
+
+    it 'does not insert points in segments already within the limit' do
+      result = described_class.parse_string(gpx_far_points, params: { max_distance: 200 })
+      track_pts = result.tracks.first.segments.first.points
+
+      # ~111 m ≤ 200 m → no split, still 2 points
+      expect(track_pts.length).to eq(2)
+    end
+
+    it 'interpolates elevation for intermediate points' do
+      result = described_class.parse_string(gpx_far_points, params: { max_distance: 200 })
+      route_pts = result.routes.first.points
+
+      intermediate = route_pts[1...-1]
+      intermediate.each { |pt| expect(pt.ele).to be_a(Float) }
+    end
+
+    it 'ensures no sub-segment exceeds max_distance after splitting' do
+      result = described_class.parse_string(gpx_far_points, params: { max_distance: 200 })
+
+      result.routes.each do |route|
+        route.points.each_cons(2) do |a, b|
+          dlat_m = (b.lat - a.lat) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT
+          avg_lat_rad = (a.lat + b.lat) / 2.0 * Math::PI / 180.0
+          dlon_m = (b.lon - a.lon) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
+          dist = Math.sqrt(dlat_m**2 + dlon_m**2)
+          expect(dist).to be <= 200
+        end
+      end
+    end
+
+    it 'runs segment splitting before statistics when both params are set' do
+      result = described_class.parse_string(
+        gpx_far_points,
+        params: { max_distance: 200, segment_statistics: true }
+      )
+      route_pts = result.routes.first.points
+
+      # All but the last should have distance_to_next computed
+      expect(route_pts.length).to be > 2
+      route_pts[0...-1].each do |pt|
+        expect(pt.distance_to_next).to be_a(Float)
+        expect(pt.distance_to_next).to be <= 200
+      end
+      expect(route_pts.last.distance_to_next).to be_nil
+    end
+
+    it 'does not split route or track points when max_distance is absent' do
+      result = described_class.parse_string(gpx_far_points)
+      expect(result.routes.first.points.length).to eq(2)
+      expect(result.tracks.first.segments.first.points.length).to eq(2)
+    end
+  end
 end
+
