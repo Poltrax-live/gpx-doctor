@@ -49,7 +49,10 @@ module GpxDoctor
       )
 
       enhance_elevations(result) if GpxDoctor.configuration.elevation_server
-      split_segments(result) if @params[:max_distance]
+
+      eff_max_dist = @params[:max_distance] || effective_max_distance(result)
+      split_segments(result, eff_max_dist) if eff_max_dist
+      select_max_points(result) if @params[:max_points]
       enhance_statistics(result) if @params[:segment_statistics]
 
       result
@@ -218,12 +221,39 @@ module GpxDoctor
       ElevationClient.new.enhance(result.points)
     end
 
-    def split_segments(result)
+    def effective_max_distance(result)
+      return nil unless @params[:max_points]
+
+      total = total_distance(result)
+      ratio = total / @params[:max_points].to_f
+      ratio > 1000 ? 500 : nil
+    end
+
+    def total_distance(result)
+      selector = PointSelector.new
+      all_point_collections(result).sum { |pts| selector.total_distance(pts) }
+    end
+
+    def all_point_collections(result)
+      collections = result.routes.map(&:points)
+      result.tracks.each { |t| t.segments.each { |s| collections << s.points } }
+      collections
+    end
+
+    def split_segments(result, max_dist)
       splitter = SegmentSplitter.new
-      max_dist = @params[:max_distance]
       result.routes.each { |route| route.points = splitter.split(route.points, max_dist) }
       result.tracks.each do |track|
         track.segments.each { |seg| seg.points = splitter.split(seg.points, max_dist) }
+      end
+    end
+
+    def select_max_points(result)
+      selector = PointSelector.new
+      n = @params[:max_points]
+      result.routes.each { |route| route.points = selector.select(route.points, n) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| seg.points = selector.select(seg.points, n) }
       end
     end
 
