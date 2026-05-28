@@ -50,7 +50,7 @@ module GpxDoctor
 
       enhance_elevations(result) if GpxDoctor.configuration.elevation_server
 
-      eff_max_dist = effective_max_distance(result)
+      eff_max_dist = @params[:max_distance] || effective_max_distance(result)
       split_segments(result, eff_max_dist) if eff_max_dist
       select_max_points(result) if @params[:max_points]
       enhance_statistics(result) if @params[:segment_statistics]
@@ -222,7 +222,6 @@ module GpxDoctor
     end
 
     def effective_max_distance(result)
-      return @params[:max_distance] if @params[:max_distance]
       return nil unless @params[:max_points]
 
       total = total_distance(result)
