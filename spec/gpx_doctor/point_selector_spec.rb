@@ -5,7 +5,7 @@ require 'spec_helper'
 RSpec.describe GpxDoctor::PointSelector do
   subject(:selector) { described_class.new }
 
-  METERS_PER_DEG = GpxDoctor::PointSelector::METERS_PER_DEGREE_LAT
+  SELECTOR_METERS_PER_DEG = GpxDoctor::PointSelector::METERS_PER_DEGREE_LAT
 
   def make_waypoint(lat:, lon:, ele: nil, time: nil)
     GpxDoctor::Models::Waypoint.new(lat: lat, lon: lon, ele: ele, time: time)
@@ -78,7 +78,7 @@ RSpec.describe GpxDoctor::PointSelector do
         # With 10 equidistant points, selecting 5 should give indices 0, 2 or 3, 4 or 5, 6 or 7, 9
         # The gaps between consecutive selected points should be roughly equal
         gaps = result.each_cons(2).map do |a, b|
-          dlat_m = (b.lat - a.lat) * METERS_PER_DEG
+          dlat_m = (b.lat - a.lat) * SELECTOR_METERS_PER_DEG
           dlat_m.abs
         end
         min_gap = gaps.min

@@ -231,16 +231,8 @@ module GpxDoctor
     end
 
     def total_distance(result)
-      dist = 0.0
-      all_point_collections(result).each do |pts|
-        pts.each_cons(2) do |a, b|
-          dlat_m = (b.lat - a.lat) * SegmentSplitter::METERS_PER_DEGREE_LAT
-          avg_lat_rad = (a.lat + b.lat) / 2.0 * Math::PI / 180.0
-          dlon_m = (b.lon - a.lon) * SegmentSplitter::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
-          dist += Math.sqrt(dlat_m**2 + dlon_m**2)
-        end
-      end
-      dist
+      selector = PointSelector.new
+      all_point_collections(result).sum { |pts| selector.total_distance(pts) }
     end
 
     def all_point_collections(result)

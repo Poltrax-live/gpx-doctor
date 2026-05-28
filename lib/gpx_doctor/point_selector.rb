@@ -4,6 +4,15 @@ module GpxDoctor
   class PointSelector
     METERS_PER_DEGREE_LAT = 111_320.0
 
+    # Returns the total distance in meters for a sequence of +points+.
+    def total_distance(points)
+      return 0.0 if points.nil? || points.size < 2
+
+      total = 0.0
+      points.each_cons(2) { |a, b| total += distance(a, b) }
+      total
+    end
+
     # Selects up to +max_points+ points from +points+ with equal distance spread.
     # Always includes the first and last points. Returns a new array; the original
     # is not mutated. When +points+ already has fewer or equal elements than
