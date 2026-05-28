@@ -580,7 +580,6 @@ RSpec.describe GpxDoctor::Parser do
 
     it 'ensures no sub-segment exceeds max_distance after splitting' do
       result = described_class.parse_string(gpx_far_points, params: { max_distance: 200 })
-      splitter = GpxDoctor::SegmentSplitter.new
 
       result.routes.each do |route|
         route.points.each_cons(2) do |a, b|
