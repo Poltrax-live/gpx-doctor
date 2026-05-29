@@ -18,6 +18,7 @@ require 'gpx_doctor/statistics_enhancer'
 require 'gpx_doctor/segment_splitter'
 require 'gpx_doctor/point_selector'
 require 'gpx_doctor/parser'
+require 'gpx_doctor/builder'
 
 module GpxDoctor
   class << self
