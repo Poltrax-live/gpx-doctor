@@ -48,12 +48,11 @@ module GpxDoctor
         metadata: parse_metadata
       )
 
-      enhance_elevations(result) if GpxDoctor.configuration.elevation_server
-
       eff_max_dist = @params[:max_distance] || effective_max_distance(result)
       split_segments(result, eff_max_dist) if eff_max_dist
       select_max_points(result) if @params[:max_points]
       enhance_statistics(result) if @params[:segment_statistics]
+      enhance_elevations(result) if @params[:enhance_elevation]
 
       result
     end
@@ -218,6 +217,9 @@ module GpxDoctor
     end
 
     def enhance_elevations(result)
+      config = GpxDoctor.configuration
+      return unless config.elevation_server && config.elevation_server_url
+
       ElevationClient.new.enhance(result.points)
     end
 

@@ -51,6 +51,28 @@ result = GpxDoctor::Parser.parse("path/to/file.gpx")
 result = GpxDoctor::Parser.parse_string(xml_string)
 ```
 
+### Parsing with processing parameters
+
+Both `parse` and `parse_string` accept an optional `params:` hash to enable post-processing:
+
+```ruby
+result = GpxDoctor::Parser.parse("path/to/file.gpx", params: {
+  max_distance:       200,           # insert interpolated points so no two consecutive points exceed this distance (metres)
+  max_points:         500,           # reduce each segment to at most this many points
+  segment_statistics: true,          # compute distance_to_next, elevation_change, direction for each point
+  enhance_elevation:  true           # fetch missing elevations from the configured elevation server
+})
+```
+
+Processing is applied in the following order:
+
+1. `max_distance` — segment splitting (interpolates intermediate points)
+2. `max_points` — point reduction
+3. `segment_statistics` — per-point statistics (distance, bearing, elevation change)
+4. `enhance_elevation` — elevation lookup via the elevation server
+
+`enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
+
 ## Accessing data
 
 ```ruby
