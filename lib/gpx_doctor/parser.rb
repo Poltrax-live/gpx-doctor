@@ -217,6 +217,9 @@ module GpxDoctor
     end
 
     def enhance_elevations(result)
+      config = GpxDoctor.configuration
+      return unless config.elevation_server && config.elevation_server_url
+
       ElevationClient.new.enhance(result.points)
     end
 

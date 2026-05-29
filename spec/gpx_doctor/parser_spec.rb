@@ -468,6 +468,40 @@ RSpec.describe GpxDoctor::Parser do
     end
   end
 
+  context 'with enhance_elevation: true but elevation server not configured' do
+    let(:gpx_without_ele) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <wpt lat="48.0" lon="16.0">
+            <name>No Elevation</name>
+          </wpt>
+        </gpx>
+      XML
+    end
+
+    before { GpxDoctor.reset_configuration! }
+
+    it 'does not raise and leaves elevation nil when server is disabled' do
+      expect_any_instance_of(GpxDoctor::ElevationClient).not_to receive(:enhance)
+
+      result = described_class.parse_string(gpx_without_ele, params: { enhance_elevation: true })
+      expect(result.waypoints.first.ele).to be_nil
+    end
+
+    it 'does not raise and leaves elevation nil when server url is missing' do
+      GpxDoctor.configure do |c|
+        c.elevation_server     = true
+        c.elevation_server_url = nil
+      end
+
+      expect_any_instance_of(GpxDoctor::ElevationClient).not_to receive(:enhance)
+
+      result = described_class.parse_string(gpx_without_ele, params: { enhance_elevation: true })
+      expect(result.waypoints.first.ele).to be_nil
+    end
+  end
+
   # -------------------------------------------------------------------
   # Statistics enhancement integration
   # -------------------------------------------------------------------
