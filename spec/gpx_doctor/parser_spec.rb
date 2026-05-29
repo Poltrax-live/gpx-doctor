@@ -16,7 +16,42 @@ RSpec.describe GpxDoctor::Parser do
     it 'produces the same output as parse_string' do
       expect(result.points.length).to eq(result_from_string.points.length)
     end
+
+    it 'raises InvalidGpxError for a non-GPX file' do
+      path = File.expand_path('../fixtures/not_xml.txt', __dir__)
+      expect { described_class.parse(path) }.to raise_error(GpxDoctor::InvalidGpxError)
+    end
+
+    it 'raises InvalidGpxError for an XXE attack file' do
+      path = File.expand_path('../fixtures/xxe_attack.gpx', __dir__)
+      expect { described_class.parse(path) }.to raise_error(GpxDoctor::InvalidGpxError, /DOCTYPE/)
+    end
   end
+
+  describe '.parse_string' do
+    it 'raises InvalidGpxError for an empty string' do
+      expect { described_class.parse_string('') }.to raise_error(GpxDoctor::InvalidGpxError)
+    end
+
+    it 'raises InvalidGpxError for malformed XML' do
+      expect { described_class.parse_string('<gpx version="1.1"><bad>') }
+        .to raise_error(GpxDoctor::InvalidGpxError, /Invalid XML/)
+    end
+
+    it 'raises InvalidGpxError when root element is not <gpx>' do
+      expect { described_class.parse_string('<root/>') }
+        .to raise_error(GpxDoctor::InvalidGpxError, /Root element must be <gpx>/)
+    end
+
+    it 'raises InvalidGpxError for unsupported GPX version' do
+      xml = <<~XML
+        <?xml version="1.0"?>
+        <gpx version="2.0" xmlns="http://www.topografix.com/GPX/1/1"></gpx>
+      XML
+      expect { described_class.parse_string(xml) }.to raise_error(GpxDoctor::InvalidGpxError, /Unsupported GPX version/)
+    end
+  end
+
 
   describe '#waypoints' do
     it 'returns the top-level wpt elements' do
