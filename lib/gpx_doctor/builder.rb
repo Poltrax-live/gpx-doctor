@@ -79,11 +79,9 @@ module GpxDoctor
 
     def build_link(xml, link)
       xml.link('href' => link.href) do
-        if link.text
-          node = Nokogiri::XML::Node.new('text', xml.doc)
-          node.content = link.text
-          xml.parent << node
-        end
+        # 'text' is a reserved method in Nokogiri::XML::Builder, so we must
+        # route through method_missing to produce a <text> element.
+        xml.send(:method_missing, :text, link.text) if link.text
         xml.type link.type if link.type
       end
     end
