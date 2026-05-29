@@ -5,7 +5,7 @@ require 'spec_helper'
 RSpec.describe GpxDoctor::PointSelector do
   subject(:selector) { described_class.new }
 
-  SELECTOR_METERS_PER_DEG = GpxDoctor::PointSelector::METERS_PER_DEGREE_LAT
+  SELECTOR_METERS_PER_DEG = GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT
 
   def make_waypoint(lat:, lon:, ele: nil, time: nil)
     GpxDoctor::Models::Waypoint.new(lat: lat, lon: lon, ele: ele, time: time)

@@ -2,8 +2,6 @@
 
 module GpxDoctor
   class SegmentSplitter
-    METERS_PER_DEGREE_LAT = 111_320.0
-
     # Splits a sequence of waypoints so that no two consecutive points are
     # farther apart than +max_distance+ meters.  Pairs that are already within
     # the limit are left untouched.  When a pair exceeds the limit, evenly
@@ -17,7 +15,7 @@ module GpxDoctor
       result = [points.first]
 
       points.each_cons(2) do |current, nxt|
-        dist = distance(current, nxt)
+        dist = DistanceCalculator.distance(current, nxt)
 
         if dist > max_distance
           n_segments = (dist / max_distance).ceil
@@ -34,13 +32,6 @@ module GpxDoctor
     end
 
     private
-
-    def distance(a, b)
-      dlat_m = (b.lat - a.lat) * METERS_PER_DEGREE_LAT
-      avg_lat_rad = (a.lat + b.lat) / 2.0 * Math::PI / 180.0
-      dlon_m = (b.lon - a.lon) * METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
-      Math.sqrt(dlat_m**2 + dlon_m**2)
-    end
 
     def interpolate(a, b, fraction)
       ele  = a.ele  && b.ele  ? a.ele  + fraction * (b.ele  - a.ele)  : nil

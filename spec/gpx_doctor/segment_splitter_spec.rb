@@ -5,7 +5,7 @@ require 'spec_helper'
 RSpec.describe GpxDoctor::SegmentSplitter do
   subject(:splitter) { described_class.new }
 
-  METERS_PER_DEG = GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT
+  METERS_PER_DEG = GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT
 
   def make_waypoint(lat:, lon:, ele: nil, time: nil)
     GpxDoctor::Models::Waypoint.new(lat: lat, lon: lon, ele: ele, time: time)
