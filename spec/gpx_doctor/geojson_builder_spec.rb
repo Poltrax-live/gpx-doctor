@@ -122,6 +122,135 @@ RSpec.describe GpxDoctor::GeoJsonBuilder do
     end
   end
 
+  describe 'RFC 7946 compliance' do
+    context 'properties member' do
+      it 'uses null for features with no properties' do
+        # Create a minimal waypoint with no name/desc/etc
+        minimal_wpt = GpxDoctor::Models::Waypoint.new(lat: 48.0, lon: 16.0)
+        result = GpxDoctor::Parser::Result.new(
+          waypoints: [minimal_wpt],
+          routes: [],
+          tracks: [],
+          metadata: nil
+        )
+        json_str = described_class.build(result)
+        geojson = JSON.parse(json_str)
+        
+        expect(geojson['features'][0]['properties']).to be_nil
+      end
+
+      it 'uses object for features with properties' do
+        # Waypoints in sample.gpx have properties
+        point_features = doc['features'].select { |f| f['geometry']['type'] == 'Point' }
+        expect(point_features.first['properties']).to be_a(Hash)
+        expect(point_features.first['properties']).not_to be_empty
+      end
+    end
+
+    context 'LineString validation' do
+      it 'filters out routes with fewer than 2 points' do
+        # Create route with only 1 point
+        single_pt_route = GpxDoctor::Models::Route.new(
+          name: 'Invalid Route',
+          points: [GpxDoctor::Models::Waypoint.new(lat: 48.0, lon: 16.0)]
+        )
+        result = GpxDoctor::Parser::Result.new(
+          waypoints: [],
+          routes: [single_pt_route],
+          tracks: [],
+          metadata: nil
+        )
+        json_str = described_class.build(result)
+        geojson = JSON.parse(json_str)
+        
+        expect(geojson['features'].length).to eq(0)
+      end
+
+      it 'includes routes with 2 or more points' do
+        # sample.gpx route has 2 points
+        line_features = doc['features'].select { |f| f['geometry']['type'] == 'LineString' }
+        expect(line_features.length).to eq(1)
+        expect(line_features.first['geometry']['coordinates'].length).to be >= 2
+      end
+    end
+
+    context 'MultiLineString validation' do
+      it 'filters out track segments with fewer than 2 points' do
+        # Create track with an invalid segment (1 point) and a valid one (2 points)
+        invalid_seg = GpxDoctor::Models::TrackSegment.new(
+          points: [GpxDoctor::Models::Waypoint.new(lat: 48.0, lon: 16.0)]
+        )
+        valid_seg = GpxDoctor::Models::TrackSegment.new(
+          points: [
+            GpxDoctor::Models::Waypoint.new(lat: 48.1, lon: 16.1),
+            GpxDoctor::Models::Waypoint.new(lat: 48.2, lon: 16.2)
+          ]
+        )
+        track = GpxDoctor::Models::Track.new(
+          name: 'Mixed Track',
+          segments: [invalid_seg, valid_seg]
+        )
+        result = GpxDoctor::Parser::Result.new(
+          waypoints: [],
+          routes: [],
+          tracks: [track],
+          metadata: nil
+        )
+        json_str = described_class.build(result)
+        geojson = JSON.parse(json_str)
+        
+        multiline_features = geojson['features'].select { |f| f['geometry']['type'] == 'MultiLineString' }
+        expect(multiline_features.length).to eq(1)
+        # Should only have the valid segment
+        expect(multiline_features.first['geometry']['coordinates'].length).to eq(1)
+        expect(multiline_features.first['geometry']['coordinates'][0].length).to eq(2)
+      end
+
+      it 'filters out tracks with no valid segments' do
+        # Create track with only invalid segments
+        invalid_seg = GpxDoctor::Models::TrackSegment.new(
+          points: [GpxDoctor::Models::Waypoint.new(lat: 48.0, lon: 16.0)]
+        )
+        track = GpxDoctor::Models::Track.new(
+          name: 'Invalid Track',
+          segments: [invalid_seg]
+        )
+        result = GpxDoctor::Parser::Result.new(
+          waypoints: [],
+          routes: [],
+          tracks: [track],
+          metadata: nil
+        )
+        json_str = described_class.build(result)
+        geojson = JSON.parse(json_str)
+        
+        expect(geojson['features'].length).to eq(0)
+      end
+    end
+
+    context 'coordinate order' do
+      it 'uses [longitude, latitude] order for all geometries' do
+        # Test Point
+        point_features = doc['features'].select { |f| f['geometry']['type'] == 'Point' }
+        coords = point_features.first['geometry']['coordinates']
+        expect(coords[0]).to be_between(-180, 180) # longitude range
+        expect(coords[1]).to be_between(-90, 90)   # latitude range
+        
+        # Test LineString
+        line_features = doc['features'].select { |f| f['geometry']['type'] == 'LineString' }
+        line_coords = line_features.first['geometry']['coordinates'].first
+        expect(line_coords[0]).to be_between(-180, 180)
+        expect(line_coords[1]).to be_between(-90, 90)
+        
+        # Test MultiLineString
+        multiline_features = doc['features'].select { |f| f['geometry']['type'] == 'MultiLineString' }
+        multi_coords = multiline_features.first['geometry']['coordinates'][0][0]
+        expect(multi_coords[0]).to be_between(-180, 180)
+        expect(multi_coords[1]).to be_between(-90, 90)
+      end
+    end
+  end
+
   describe '.build_file' do
     it 'writes JSON to disk and returns the JSON string' do
       Dir.mktmpdir do |dir|

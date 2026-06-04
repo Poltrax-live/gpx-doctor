@@ -3,6 +3,14 @@
 require 'json'
 
 module GpxDoctor
+  # Builds GeoJSON output from parsed GPX data according to RFC 7946.
+  #
+  # RFC 7946 compliance:
+  # - Coordinate order: [longitude, latitude, elevation]
+  # - LineString geometries require minimum 2 positions
+  # - MultiLineString segments require minimum 2 positions each
+  # - Empty or invalid geometries are filtered out
+  # - Properties member is null when no properties exist
   class GeoJsonBuilder
     class << self
       def build(result)
@@ -40,36 +48,50 @@ module GpxDoctor
 
     def route_features
       @result.routes.map do |route|
+        coords = route.points.map { |pt| coordinate(pt) }
+        # RFC 7946: LineString must have 2 or more positions
+        next if coords.length < 2
+
+        props = route_properties(route)
         {
           type: 'Feature',
-          properties: route_properties(route),
+          properties: props.empty? ? nil : props,
           geometry: {
             type: 'LineString',
-            coordinates: route.points.map { |pt| coordinate(pt) }
+            coordinates: coords
           }
         }
-      end
+      end.compact
     end
 
     def track_features
       @result.tracks.map do |track|
+        # RFC 7946: Each LineString in MultiLineString must have 2+ positions
+        coords = track.segments.map do |seg|
+          seg_coords = seg.points.map { |pt| coordinate(pt) }
+          seg_coords if seg_coords.length >= 2
+        end.compact
+
+        # Skip tracks with no valid segments
+        next if coords.empty?
+
+        props = track_properties(track)
         {
           type: 'Feature',
-          properties: track_properties(track),
+          properties: props.empty? ? nil : props,
           geometry: {
             type: 'MultiLineString',
-            coordinates: track.segments.map do |seg|
-              seg.points.map { |pt| coordinate(pt) }
-            end
+            coordinates: coords
           }
         }
-      end
+      end.compact
     end
 
     def point_feature(wpt)
+      props = waypoint_properties(wpt)
       {
         type: 'Feature',
-        properties: waypoint_properties(wpt),
+        properties: props.empty? ? nil : props,
         geometry: {
           type: 'Point',
           coordinates: coordinate(wpt)
