@@ -77,9 +77,9 @@ module GpxDoctor
       }
     end
 
-    def coordinate(wpt)
-      coord = [wpt.lon, wpt.lat]
-      coord << wpt.ele if wpt.ele
+    def coordinate(point)
+      coord = [point.lon, point.lat]
+      coord << point.ele if point.ele
       coord
     end
 
@@ -90,7 +90,6 @@ module GpxDoctor
       props[:sym]   = wpt.sym   if wpt.sym
       props[:type]  = wpt.type  if wpt.type
       props[:time]  = wpt.time.iso8601 if wpt.time
-      props[:ele]   = wpt.ele   if wpt.ele
       props
     end
 
