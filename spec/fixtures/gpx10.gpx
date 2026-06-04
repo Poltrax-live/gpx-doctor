@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.0" creator="Legacy GPS Device">
+  <trk>
+    <name>Old Track</name>
+    <trkseg>
+      <trkpt lat="48.2300000" lon="16.3800000">
+        <ele>170.0</ele>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

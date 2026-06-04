@@ -20,7 +20,8 @@ module GpxDoctor
       end
 
       def parse_string(xml_string, params: {})
-        doc = Nokogiri::XML(xml_string)
+        Validator.validate!(xml_string)
+        doc = Nokogiri::XML(xml_string) { |config| config.nonet }
         ns  = detect_namespace(doc)
 
         new(doc, ns, params: params).parse

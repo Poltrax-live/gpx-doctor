@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require 'gpx_doctor/version'
+require 'gpx_doctor/errors'
 require 'gpx_doctor/configuration'
+require 'gpx_doctor/validator'
 require 'gpx_doctor/models/email'
 require 'gpx_doctor/models/link'
 require 'gpx_doctor/models/copyright'
