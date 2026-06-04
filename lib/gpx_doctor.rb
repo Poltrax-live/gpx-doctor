@@ -21,6 +21,7 @@ require 'gpx_doctor/segment_splitter'
 require 'gpx_doctor/point_selector'
 require 'gpx_doctor/parser'
 require 'gpx_doctor/builder'
+require 'gpx_doctor/geojson_builder'
 
 module GpxDoctor
   class << self
