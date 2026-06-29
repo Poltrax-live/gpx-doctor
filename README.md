@@ -88,6 +88,121 @@ result.metadata  # => #<Metadata …>  (or nil)
 - `<rtept>` elements inside each `<rte>`
 - `<trkpt>` elements inside each `<trkseg>` inside each `<trk>`
 
+## Building GPX files
+
+The `GpxDoctor::Builder` class generates GPX 1.1 XML from a `Result` object (the same structure returned by the parser).
+
+### Build to a string
+
+```ruby
+result = GpxDoctor::Parser::Result.new(
+  waypoints: [],
+  routes: [],
+  tracks: [],
+  metadata: nil
+)
+
+xml_string = GpxDoctor::Builder.build(result)
+# => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\"..."
+
+# Optional: specify a custom creator attribute (identifies the software that created the GPX file)
+xml_string = GpxDoctor::Builder.build(result, creator: 'My Application')
+```
+
+### Build to a file
+
+```ruby
+GpxDoctor::Builder.build_file(result, 'path/to/output.gpx')
+# Writes the GPX XML to the file and returns the XML string
+
+# Optional: specify a custom creator attribute
+GpxDoctor::Builder.build_file(result, 'path/to/output.gpx', creator: 'My Application')
+```
+
+### Input structure
+
+The builder expects a `GpxDoctor::Parser::Result` object with the following fields:
+
+- **`waypoints`** — Array of `GpxDoctor::Waypoint` objects (top-level waypoints)
+- **`routes`** — Array of `GpxDoctor::Route` objects
+- **`tracks`** — Array of `GpxDoctor::Track` objects
+- **`metadata`** — `GpxDoctor::Metadata` object (optional)
+
+All model classes are simple Ruby objects with attributes matching the GPX 1.1 specification (see **Model field reference** below).
+
+### Example: Creating a GPX file from scratch
+
+```ruby
+require 'gpx_doctor'
+
+# Create waypoints
+waypoint = GpxDoctor::Waypoint.new(
+  lat: 48.2093723,
+  lon: 16.356099,
+  ele: 160.0,
+  name: 'Vienna',
+  desc: 'Capital of Austria'
+)
+
+# Create a route with points
+route_point_1 = GpxDoctor::Waypoint.new(lat: 48.21, lon: 16.36, ele: 155.0)
+route_point_2 = GpxDoctor::Waypoint.new(lat: 48.22, lon: 16.37, ele: 162.0)
+
+route = GpxDoctor::Route.new(
+  name: 'City Tour',
+  desc: 'A route through the city',
+  points: [route_point_1, route_point_2]
+)
+
+# Create a track with segments
+track_point_1 = GpxDoctor::Waypoint.new(lat: 48.23, lon: 16.38, ele: 170.0)
+track_point_2 = GpxDoctor::Waypoint.new(lat: 48.24, lon: 16.39, ele: 175.0)
+
+segment = GpxDoctor::TrackSegment.new(points: [track_point_1, track_point_2])
+track = GpxDoctor::Track.new(
+  name: 'Morning Run',
+  desc: 'My morning jog',
+  segments: [segment]
+)
+
+# Create metadata (optional)
+metadata = GpxDoctor::Metadata.new(
+  name: 'My GPX File',
+  desc: 'A custom GPX file',
+  time: Time.now
+)
+
+# Build the result object
+result = GpxDoctor::Parser::Result.new(
+  waypoints: [waypoint],
+  routes: [route],
+  tracks: [track],
+  metadata: metadata
+)
+
+# Generate GPX XML
+xml_string = GpxDoctor::Builder.build(result, creator: 'My Application')
+
+# Or write directly to a file
+GpxDoctor::Builder.build_file(result, 'my_route.gpx', creator: 'My Application')
+```
+
+### Round-trip workflow
+
+You can parse an existing GPX file, modify it, and build it back:
+
+```ruby
+# Parse existing file
+result = GpxDoctor::Parser.parse('input.gpx')
+
+# Modify data
+result.routes.first.name = 'Updated Route Name'
+result.waypoints << GpxDoctor::Waypoint.new(lat: 48.5, lon: 16.5, name: 'New Point')
+
+# Build back to GPX
+GpxDoctor::Builder.build_file(result, 'output.gpx')
+```
+
 ## Model field reference
 
 ### `Waypoint`
