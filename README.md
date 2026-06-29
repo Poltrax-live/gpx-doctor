@@ -105,7 +105,7 @@ result = GpxDoctor::Parser::Result.new(
 xml_string = GpxDoctor::Builder.build(result)
 # => "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.1\"..."
 
-# Optional: specify a custom creator attribute
+# Optional: specify a custom creator attribute (identifies the software that created the GPX file)
 xml_string = GpxDoctor::Builder.build(result, creator: 'My Application')
 ```
 
@@ -114,6 +114,9 @@ xml_string = GpxDoctor::Builder.build(result, creator: 'My Application')
 ```ruby
 GpxDoctor::Builder.build_file(result, 'path/to/output.gpx')
 # Writes the GPX XML to the file and returns the XML string
+
+# Optional: specify a custom creator attribute
+GpxDoctor::Builder.build_file(result, 'path/to/output.gpx', creator: 'My Application')
 ```
 
 ### Input structure
