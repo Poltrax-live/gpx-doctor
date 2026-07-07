@@ -86,5 +86,49 @@ RSpec.describe GpxDoctor::CumulativeDistanceEnhancer do
         end
       end
     end
+
+    context 'with imperial units' do
+      before do
+        GpxDoctor.configure { |c| c.unit_system = :imperial }
+      end
+
+      after do
+        GpxDoctor.reset_configuration!
+      end
+
+      it 'returns cumulative distance in miles' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0)
+        wp2 = make_waypoint(lat: 49.0, lon: 16.0)
+        enhancer.enhance([wp1, wp2])
+        # 111.32 km = 69.17 miles
+        expect(wp1.cumulative_distance).to eq(0.0)
+        expect(wp2.cumulative_distance).to be_within(0.01).of(69.17)
+      end
+
+      it 'accumulates distance in miles correctly' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0)
+        wp2 = make_waypoint(lat: 49.0, lon: 16.0)
+        wp3 = make_waypoint(lat: 50.0, lon: 16.0)
+        enhancer.enhance([wp1, wp2, wp3])
+        # 222.64 km = 138.34 miles
+        expect(wp1.cumulative_distance).to eq(0.0)
+        expect(wp2.cumulative_distance).to be_within(0.01).of(69.17)
+        expect(wp3.cumulative_distance).to be_within(0.02).of(138.34)
+      end
+
+      it 'ensures cumulative distances are monotonically increasing in miles' do
+        waypoints = [
+          make_waypoint(lat: 48.0, lon: 16.0),
+          make_waypoint(lat: 48.001, lon: 16.001),
+          make_waypoint(lat: 48.002, lon: 16.002),
+          make_waypoint(lat: 48.003, lon: 16.003)
+        ]
+        enhancer.enhance(waypoints)
+
+        distances = waypoints.map(&:cumulative_distance)
+        expect(distances).to eq(distances.sort)
+        expect(waypoints.first.cumulative_distance).to eq(0.0)
+      end
+    end
   end
 end

@@ -24,6 +24,7 @@ GpxDoctor.configure do |config|
   config.elevation_server_url      = "https://elevation.example.com"
   config.elevation_server_user     = "user"
   config.elevation_server_password = "secret"
+  config.unit_system               = :imperial  # or :metric (default)
 end
 
 GpxDoctor.configuration.elevation_server_url # => "https://elevation.example.com"
@@ -36,6 +37,33 @@ GpxDoctor.reset_configuration!               # resets to defaults
 | `elevation_server_url` | String | `nil` | URL of the elevation server |
 | `elevation_server_user` | String | `nil` | Username for the elevation server |
 | `elevation_server_password` | String | `nil` | Password for the elevation server |
+| `unit_system` | Symbol | `:metric` | Unit system (`:metric` or `:imperial`) for distance and elevation values |
+
+### Unit System
+
+The `unit_system` configuration affects the following fields:
+
+- **`:metric` (default)**:
+  - `distance_to_next` and `elevation_change` are in **meters**
+  - `cumulative_distance` is in **kilometers**
+- **`:imperial`**:
+  - `distance_to_next` and `elevation_change` are in **feet**
+  - `cumulative_distance` is in **miles**
+
+```ruby
+# Use imperial units
+GpxDoctor.configure do |config|
+  config.unit_system = :imperial
+end
+
+result = GpxDoctor::Parser.parse("path/to/file.gpx", params: { 
+  segment_statistics: true, 
+  cumulative_distance: true 
+})
+
+# distance_to_next and elevation_change will be in feet
+# cumulative_distance will be in miles
+```
 
 ## Parsing
 
@@ -233,10 +261,10 @@ GpxDoctor::Builder.build_file(result, 'output.gpx')
 | `pdop` | Float | |
 | `ageofdgpsdata` | Float | |
 | `dgpsid` | Integer | 0–1023 |
-| `distance_to_next` | Float | Distance to next point (metres) — set by `segment_statistics: true` |
-| `elevation_change` | Float | Elevation change to next point (metres) — set by `segment_statistics: true` |
+| `distance_to_next` | Float | Distance to next point (metres or feet based on `unit_system`) — set by `segment_statistics: true` |
+| `elevation_change` | Float | Elevation change to next point (metres or feet based on `unit_system`) — set by `segment_statistics: true` |
 | `direction` | Float | Bearing to next point (0–360°) — set by `segment_statistics: true` |
-| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres) — set by `cumulative_distance: true` |
+| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres or miles based on `unit_system`) — set by `cumulative_distance: true` |
 
 `Waypoint#to_h` returns a hash of all non-nil fields.
 

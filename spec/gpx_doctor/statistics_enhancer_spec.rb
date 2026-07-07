@@ -182,5 +182,46 @@ RSpec.describe GpxDoctor::StatisticsEnhancer do
         expect(wps.last.direction).to be_nil
       end
     end
+
+    context 'with imperial units' do
+      before do
+        GpxDoctor.configure { |c| c.unit_system = :imperial }
+      end
+
+      after do
+        GpxDoctor.reset_configuration!
+      end
+
+      it 'returns distance in feet' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0)
+        wp2 = make_waypoint(lat: 49.0, lon: 16.0)
+        enhancer.enhance([wp1, wp2])
+        # 111,320 meters = 365,157.48 feet
+        expect(wp1.distance_to_next).to be_within(100).of(365_157.48)
+      end
+
+      it 'returns elevation change in feet' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0, ele: 100.0)
+        wp2 = make_waypoint(lat: 48.001, lon: 16.001, ele: 120.0)
+        enhancer.enhance([wp1, wp2])
+        # 20 meters = 65.6168 feet
+        expect(wp1.elevation_change).to be_within(0.01).of(65.6168)
+      end
+
+      it 'returns negative elevation change in feet' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0, ele: 200.0)
+        wp2 = make_waypoint(lat: 48.001, lon: 16.001, ele: 100.0)
+        enhancer.enhance([wp1, wp2])
+        # -100 meters = -328.084 feet
+        expect(wp1.elevation_change).to be_within(0.01).of(-328.084)
+      end
+
+      it 'direction remains in degrees regardless of unit system' do
+        wp1 = make_waypoint(lat: 48.0, lon: 16.0)
+        wp2 = make_waypoint(lat: 49.0, lon: 16.0)
+        enhancer.enhance([wp1, wp2])
+        expect(wp1.direction).to be_within(0.1).of(0.0)
+      end
+    end
   end
 end
