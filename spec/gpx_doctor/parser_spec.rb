@@ -657,9 +657,9 @@ RSpec.describe GpxDoctor::Parser do
 
       result.routes.each do |route|
         route.points.each_cons(2) do |a, b|
-          dlat_m = (b.lat - a.lat) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT
+          dlat_m = (b.lat - a.lat) * GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT
           avg_lat_rad = (a.lat + b.lat) / 2.0 * Math::PI / 180.0
-          dlon_m = (b.lon - a.lon) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
+          dlon_m = (b.lon - a.lon) * GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
           dist = Math.sqrt(dlat_m**2 + dlon_m**2)
           expect(dist).to be <= 200
         end
