@@ -657,9 +657,9 @@ RSpec.describe GpxDoctor::Parser do
 
       result.routes.each do |route|
         route.points.each_cons(2) do |a, b|
-          dlat_m = (b.lat - a.lat) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT
+          dlat_m = (b.lat - a.lat) * GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT
           avg_lat_rad = (a.lat + b.lat) / 2.0 * Math::PI / 180.0
-          dlon_m = (b.lon - a.lon) * GpxDoctor::SegmentSplitter::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
+          dlon_m = (b.lon - a.lon) * GpxDoctor::DistanceCalculator::METERS_PER_DEGREE_LAT * Math.cos(avg_lat_rad)
           dist = Math.sqrt(dlat_m**2 + dlon_m**2)
           expect(dist).to be <= 200
         end
@@ -793,6 +793,162 @@ RSpec.describe GpxDoctor::Parser do
       result = described_class.parse_string(gpx, params: { max_points: 1 })
       # Only 1 point selected, no intermediate points added
       expect(result.routes.first.points.length).to eq(1)
+    end
+  end
+
+  # -------------------------------------------------------------------
+  # cumulative_distance integration
+  # -------------------------------------------------------------------
+  context 'with cumulative_distance enabled' do
+    it 'enhances route points with cumulative distance' do
+      result = described_class.parse(fixture_path, params: { cumulative_distance: true })
+      route_pts = result.routes.first.points
+
+      expect(route_pts.first.cumulative_distance).to eq(0.0)
+      expect(route_pts.last.cumulative_distance).to be_a(Float)
+      expect(route_pts.last.cumulative_distance).to be > 0
+    end
+
+    it 'enhances track segment points with cumulative distance' do
+      result = described_class.parse(fixture_path, params: { cumulative_distance: true })
+      track_pts = result.tracks.first.segments.first.points
+
+      expect(track_pts.first.cumulative_distance).to eq(0.0)
+      expect(track_pts.last.cumulative_distance).to be_a(Float)
+      expect(track_pts.last.cumulative_distance).to be > 0
+    end
+
+    it 'does not enhance standalone waypoints' do
+      result = described_class.parse(fixture_path, params: { cumulative_distance: true })
+      wpt = result.waypoints.first
+      expect(wpt.cumulative_distance).to be_nil
+    end
+
+    it 'ensures cumulative distances are monotonically increasing' do
+      result = described_class.parse(fixture_path, params: { cumulative_distance: true })
+      route_pts = result.routes.first.points
+      
+      distances = route_pts.map(&:cumulative_distance)
+      expect(distances).to eq(distances.sort)
+    end
+
+    it 'includes cumulative_distance in to_h' do
+      result = described_class.parse(fixture_path, params: { cumulative_distance: true })
+      h = result.routes.first.points.first.to_h
+      expect(h).to have_key(:cumulative_distance)
+      expect(h[:cumulative_distance]).to eq(0.0)
+    end
+
+    it 'works with parse_string' do
+      result = described_class.parse_string(fixture_xml, params: { cumulative_distance: true })
+      route_pts = result.routes.first.points
+
+      expect(route_pts.first.cumulative_distance).to eq(0.0)
+      expect(route_pts.last.cumulative_distance).to be > 0
+    end
+
+    context 'with multiple segments in a track' do
+      let(:gpx_multi_segment) do
+        <<~XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+            <trk>
+              <name>Multi-segment Track</name>
+              <trkseg>
+                <trkpt lat="48.0" lon="16.0"><ele>100.0</ele></trkpt>
+                <trkpt lat="48.001" lon="16.0"><ele>110.0</ele></trkpt>
+                <trkpt lat="48.002" lon="16.0"><ele>120.0</ele></trkpt>
+              </trkseg>
+              <trkseg>
+                <trkpt lat="49.0" lon="17.0"><ele>200.0</ele></trkpt>
+                <trkpt lat="49.001" lon="17.0"><ele>210.0</ele></trkpt>
+              </trkseg>
+            </trk>
+          </gpx>
+        XML
+      end
+
+      it 'does not count distance between end of one segment and start of next' do
+        result = described_class.parse_string(gpx_multi_segment, params: { cumulative_distance: true })
+        track = result.tracks.first
+        
+        seg1_pts = track.segments[0].points
+        seg2_pts = track.segments[1].points
+
+        # First segment: cumulative distance starts at 0 and grows
+        expect(seg1_pts.first.cumulative_distance).to eq(0.0)
+        expect(seg1_pts.last.cumulative_distance).to be > 0
+        
+        # Second segment: cumulative distance restarts at 0
+        expect(seg2_pts.first.cumulative_distance).to eq(0.0)
+        expect(seg2_pts.last.cumulative_distance).to be > 0
+        
+        # The distance between last point of seg1 and first point of seg2 should NOT be included
+        # seg2 should start fresh at 0.0
+        expect(seg2_pts.first.cumulative_distance).to eq(0.0)
+      end
+
+      it 'calculates cumulative distance independently for each segment' do
+        result = described_class.parse_string(gpx_multi_segment, params: { cumulative_distance: true })
+        track = result.tracks.first
+        
+        seg1_pts = track.segments[0].points
+        seg2_pts = track.segments[1].points
+
+        # Each segment starts at 0
+        expect(seg1_pts.first.cumulative_distance).to eq(0.0)
+        expect(seg2_pts.first.cumulative_distance).to eq(0.0)
+
+        # Within each segment, distances accumulate
+        seg1_pts.each_cons(2) do |prev, curr|
+          expect(curr.cumulative_distance).to be > prev.cumulative_distance
+        end
+
+        seg2_pts.each_cons(2) do |prev, curr|
+          expect(curr.cumulative_distance).to be > prev.cumulative_distance
+        end
+      end
+
+      it 'handles three segments correctly' do
+        gpx_three_segs = <<~XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+            <trk>
+              <name>Three-segment Track</name>
+              <trkseg>
+                <trkpt lat="48.0" lon="16.0"/>
+                <trkpt lat="48.001" lon="16.0"/>
+              </trkseg>
+              <trkseg>
+                <trkpt lat="49.0" lon="17.0"/>
+                <trkpt lat="49.001" lon="17.0"/>
+              </trkseg>
+              <trkseg>
+                <trkpt lat="50.0" lon="18.0"/>
+                <trkpt lat="50.001" lon="18.0"/>
+              </trkseg>
+            </trk>
+          </gpx>
+        XML
+        
+        result = described_class.parse_string(gpx_three_segs, params: { cumulative_distance: true })
+        track = result.tracks.first
+        
+        # All three segments should start at 0
+        track.segments.each do |seg|
+          expect(seg.points.first.cumulative_distance).to eq(0.0)
+        end
+      end
+    end
+  end
+
+  context 'with cumulative_distance disabled (default)' do
+    it 'does not add cumulative_distance to points' do
+      result = described_class.parse(fixture_path)
+      route_pts = result.routes.first.points
+
+      expect(route_pts.first.cumulative_distance).to be_nil
+      expect(route_pts.last.cumulative_distance).to be_nil
     end
   end
 end

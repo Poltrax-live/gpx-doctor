@@ -53,6 +53,7 @@ module GpxDoctor
       split_segments(result, eff_max_dist) if eff_max_dist
       select_max_points(result) if @params[:max_points]
       enhance_statistics(result) if @params[:segment_statistics]
+      enhance_cumulative_distance(result) if @params[:cumulative_distance]
       enhance_elevations(result) if @params[:enhance_elevation]
 
       result
@@ -262,6 +263,14 @@ module GpxDoctor
 
     def enhance_statistics(result)
       enhancer = StatisticsEnhancer.new
+      result.routes.each { |route| enhancer.enhance(route.points) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| enhancer.enhance(seg.points) }
+      end
+    end
+
+    def enhance_cumulative_distance(result)
+      enhancer = CumulativeDistanceEnhancer.new
       result.routes.each { |route| enhancer.enhance(route.points) }
       result.tracks.each do |track|
         track.segments.each { |seg| enhancer.enhance(seg.points) }

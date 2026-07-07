@@ -60,6 +60,7 @@ result = GpxDoctor::Parser.parse("path/to/file.gpx", params: {
   max_distance:       200,           # insert interpolated points so no two consecutive points exceed this distance (metres)
   max_points:         500,           # reduce each segment to at most this many points
   segment_statistics: true,          # compute distance_to_next, elevation_change, direction for each point
+  cumulative_distance: true,         # add cumulative distance from start of each segment/route
   enhance_elevation:  true           # fetch missing elevations from the configured elevation server
 })
 ```
@@ -69,9 +70,12 @@ Processing is applied in the following order:
 1. `max_distance` — segment splitting (interpolates intermediate points)
 2. `max_points` — point reduction
 3. `segment_statistics` — per-point statistics (distance, bearing, elevation change)
-4. `enhance_elevation` — elevation lookup via the elevation server
+4. `cumulative_distance` — cumulative distance from the start of each segment/route
+5. `enhance_elevation` — elevation lookup via the elevation server
 
 `enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
+
+`cumulative_distance: true` adds a `cumulative_distance` field to each point, representing the cumulative distance in kilometers from the start of its segment or route. For tracks with multiple segments, each segment's cumulative distance starts at 0.0 (gaps between segments are not included in the calculation).
 
 ## Accessing data
 
@@ -229,6 +233,10 @@ GpxDoctor::Builder.build_file(result, 'output.gpx')
 | `pdop` | Float | |
 | `ageofdgpsdata` | Float | |
 | `dgpsid` | Integer | 0–1023 |
+| `distance_to_next` | Float | Distance to next point (metres) — set by `segment_statistics: true` |
+| `elevation_change` | Float | Elevation change to next point (metres) — set by `segment_statistics: true` |
+| `direction` | Float | Bearing to next point (0–360°) — set by `segment_statistics: true` |
+| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres) — set by `cumulative_distance: true` |
 
 `Waypoint#to_h` returns a hash of all non-nil fields.
 
