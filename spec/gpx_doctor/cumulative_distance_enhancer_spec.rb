@@ -41,21 +41,21 @@ RSpec.describe GpxDoctor::CumulativeDistanceEnhancer do
     end
 
     context 'with three waypoints in a straight line north' do
-      # 1 degree latitude ≈ 111,320 meters
+      # 1 degree latitude ≈ 111,320 meters = 111.32 kilometers
       let(:wp1) { make_waypoint(lat: 48.0, lon: 16.0) }
       let(:wp2) { make_waypoint(lat: 49.0, lon: 16.0) }
       let(:wp3) { make_waypoint(lat: 50.0, lon: 16.0) }
 
       before { enhancer.enhance([wp1, wp2, wp3]) }
 
-      it 'sets cumulative_distance correctly for each point' do
+      it 'sets cumulative_distance correctly for each point in kilometers' do
         expect(wp1.cumulative_distance).to eq(0.0)
-        expect(wp2.cumulative_distance).to be_within(10).of(111_320.0)
-        expect(wp3.cumulative_distance).to be_within(20).of(222_640.0)
+        expect(wp2.cumulative_distance).to be_within(0.01).of(111.32)
+        expect(wp3.cumulative_distance).to be_within(0.02).of(222.64)
       end
 
       it 'accumulates distances correctly' do
-        expect(wp3.cumulative_distance).to be_within(1).of(wp2.cumulative_distance * 2)
+        expect(wp3.cumulative_distance).to be_within(0.001).of(wp2.cumulative_distance * 2)
       end
     end
 
