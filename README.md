@@ -75,7 +75,7 @@ Processing is applied in the following order:
 
 `enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
 
-`cumulative_distance: true` adds a `cumulative_distance` field to each point, representing the cumulative distance in meters from the start of its segment or route. For tracks with multiple segments, each segment's cumulative distance starts at 0.0 (gaps between segments are not included in the calculation).
+`cumulative_distance: true` adds a `cumulative_distance` field to each point, representing the cumulative distance in kilometers from the start of its segment or route. For tracks with multiple segments, each segment's cumulative distance starts at 0.0 (gaps between segments are not included in the calculation).
 
 ## Accessing data
 
@@ -236,7 +236,7 @@ GpxDoctor::Builder.build_file(result, 'output.gpx')
 | `distance_to_next` | Float | Distance to next point (metres) — set by `segment_statistics: true` |
 | `elevation_change` | Float | Elevation change to next point (metres) — set by `segment_statistics: true` |
 | `direction` | Float | Bearing to next point (0–360°) — set by `segment_statistics: true` |
-| `cumulative_distance` | Float | Cumulative distance from segment/route start (metres) — set by `cumulative_distance: true` |
+| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres) — set by `cumulative_distance: true` |
 
 `Waypoint#to_h` returns a hash of all non-nil fields.
 
