@@ -7,7 +7,7 @@ module GpxDoctor
   class Parser
     GPX_NS = 'http://www.topografix.com/GPX/1/1'
 
-    Result = Struct.new(:waypoints, :routes, :tracks, :metadata, keyword_init: true) do
+    Result = Struct.new(:waypoints, :routes, :tracks, :metadata, :pois, keyword_init: true) do
       def points
         waypoints + routes.flat_map(&:points) + tracks.flat_map(&:points)
       end
@@ -55,6 +55,7 @@ module GpxDoctor
       enhance_statistics(result) if @params[:segment_statistics]
       enhance_cumulative_distance(result) if @params[:cumulative_distance]
       enhance_elevations(result) if @params[:enhance_elevation]
+      result.pois = build_pois(result) if @params[:full_poi_data]
 
       result
     end
@@ -274,6 +275,52 @@ module GpxDoctor
       result.routes.each { |route| enhancer.enhance(route.points) }
       result.tracks.each do |track|
         track.segments.each { |seg| enhancer.enhance(seg.points) }
+      end
+    end
+
+    def point_to_poi(point, distance)
+      poi = { lon: point.lon, lat: point.lat }
+      poi[:ele] = point.ele if point.ele
+      poi[:distance] = distance
+      poi
+    end
+
+    def build_pois(result)
+      collections = result.routes.map(&:points) +
+                    result.tracks.flat_map { |t| t.segments.map(&:points) }
+      non_empty = collections.reject(&:empty?)
+
+      return {} if non_empty.empty?
+
+      total_distance = non_empty.sum { |pts| collection_distance(pts) }
+
+      pois = {
+        start: point_to_poi(non_empty.first.first, 0.0),
+        finish: point_to_poi(non_empty.last.last, total_distance)
+      }
+
+      segments_pois = result.tracks.flat_map do |track|
+        track.segments.filter_map do |seg|
+          next if seg.points.empty?
+
+          {
+            start: point_to_poi(seg.points.first, 0.0),
+            finish: point_to_poi(seg.points.last, collection_distance(seg.points))
+          }
+        end
+      end
+
+      pois[:segments] = segments_pois unless segments_pois.empty?
+      pois
+    end
+
+    def collection_distance(points)
+      return 0.0 if points.length < 2
+
+      unit_system = GpxDoctor.configuration.unit_system
+      points.each_cons(2).sum do |a, b|
+        dist_km = DistanceCalculator.distance(a, b) / 1000.0
+        UnitConverter.convert_cumulative_distance(dist_km, unit_system)
       end
     end
   end
