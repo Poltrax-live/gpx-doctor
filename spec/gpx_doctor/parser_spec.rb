@@ -951,6 +951,95 @@ RSpec.describe GpxDoctor::Parser do
       expect(route_pts.last.cumulative_distance).to be_nil
     end
   end
+
+  # -------------------------------------------------------------------
+  # full_poi_data integration
+  # -------------------------------------------------------------------
+  context 'with full_poi_data: true' do
+    let(:result_with_pois) { described_class.parse(fixture_path, params: { full_poi_data: true }) }
+
+    it 'populates result.pois' do
+      expect(result_with_pois.pois).to be_a(Hash)
+      expect(result_with_pois.pois).not_to be_empty
+    end
+
+    it 'includes a start poi with lon, lat and distance' do
+      start_poi = result_with_pois.pois[:start]
+      expect(start_poi).to include(:lon, :lat, :distance)
+      expect(start_poi[:lon]).to be_a(Float)
+      expect(start_poi[:lat]).to be_a(Float)
+      expect(start_poi[:distance]).to eq(0.0)
+    end
+
+    it 'includes a finish poi with lon, lat and distance' do
+      finish_poi = result_with_pois.pois[:finish]
+      expect(finish_poi).to include(:lon, :lat, :distance)
+      expect(finish_poi[:lon]).to be_a(Float)
+      expect(finish_poi[:lat]).to be_a(Float)
+      expect(finish_poi[:distance]).to be > 0
+    end
+
+    it 'includes ele in pois when points have elevation' do
+      expect(result_with_pois.pois[:start]).to include(:ele)
+      expect(result_with_pois.pois[:finish]).to include(:ele)
+    end
+
+    it 'includes segments pois for track segments' do
+      segments = result_with_pois.pois[:segments]
+      expect(segments).to be_an(Array)
+      expect(segments.length).to be >= 1
+    end
+
+    it 'each segment poi has start and finish with lon, lat, distance' do
+      result_with_pois.pois[:segments].each do |seg|
+        expect(seg[:start]).to include(:lon, :lat, :distance)
+        expect(seg[:finish]).to include(:lon, :lat, :distance)
+        expect(seg[:start][:distance]).to eq(0.0)
+        expect(seg[:finish][:distance]).to be > 0
+      end
+    end
+
+    it 'does not populate pois when full_poi_data is not set' do
+      expect(result.pois).to be_nil
+    end
+
+    context 'when there are no tracks (only routes)' do
+      let(:routes_only_xml) do
+        <<~XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+            <rte>
+              <name>Route Only</name>
+              <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+              <rtept lat="48.01" lon="16.01"><ele>110.0</ele></rtept>
+            </rte>
+          </gpx>
+        XML
+      end
+
+      it 'returns pois with start and finish but no segments' do
+        r = described_class.parse_string(routes_only_xml, params: { full_poi_data: true })
+        expect(r.pois[:start]).to include(:lon, :lat)
+        expect(r.pois[:finish]).to include(:lon, :lat)
+        expect(r.pois[:segments]).to be_nil
+      end
+    end
+
+    context 'when there are no points' do
+      let(:empty_xml) do
+        <<~XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          </gpx>
+        XML
+      end
+
+      it 'returns an empty pois hash' do
+        r = described_class.parse_string(empty_xml, params: { full_poi_data: true })
+        expect(r.pois).to eq({})
+      end
+    end
+  end
 end
 
 

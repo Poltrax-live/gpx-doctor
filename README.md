@@ -89,7 +89,8 @@ result = GpxDoctor::Parser.parse("path/to/file.gpx", params: {
   max_points:         500,           # reduce each segment to at most this many points
   segment_statistics: true,          # compute distance_to_next, elevation_change, direction for each point
   cumulative_distance: true,         # add cumulative distance from start of each segment/route
-  enhance_elevation:  true           # fetch missing elevations from the configured elevation server
+  enhance_elevation:  true,          # fetch missing elevations from the configured elevation server
+  full_poi_data:      true           # populate result.pois with start/finish boundary data for the whole GPX and each track segment
 })
 ```
 
@@ -100,10 +101,13 @@ Processing is applied in the following order:
 3. `segment_statistics` — per-point statistics (distance, bearing, elevation change)
 4. `cumulative_distance` — cumulative distance from the start of each segment/route
 5. `enhance_elevation` — elevation lookup via the elevation server
+6. `full_poi_data` — POI boundary extraction (start, finish, and per-segment boundaries)
 
 `enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
 
 `cumulative_distance: true` adds a `cumulative_distance` field to each point, representing the cumulative distance in kilometers from the start of its segment or route. For tracks with multiple segments, each segment's cumulative distance starts at 0.0 (gaps between segments are not included in the calculation).
+
+`full_poi_data: true` populates `result.pois` with the first and last geographic point of the entire GPX (across all routes and track segments), plus optional per-segment boundary data. Distances within each segment start at 0.0 and reflect that segment's length only. The `ele` key is omitted for points that have no elevation value. The global `finish` distance is the sum of all individual collection lengths. See **`result.pois`** below for the output shape.
 
 ## Accessing data
 
@@ -113,12 +117,38 @@ result.waypoints # => [#<Waypoint …>]  (top-level <wpt> elements only)
 result.routes    # => [#<Route …>]
 result.tracks    # => [#<Track …>]
 result.metadata  # => #<Metadata …>  (or nil)
+result.pois      # => Hash (only when parsed with full_poi_data: true, otherwise nil)
 ```
 
 `result.points` is a flat array containing **all** geographic points from:
 - Top-level `<wpt>` elements
 - `<rtept>` elements inside each `<rte>`
 - `<trkpt>` elements inside each `<trkseg>` inside each `<trk>`
+
+### `result.pois`
+
+When parsed with `full_poi_data: true`, `result.pois` contains boundary data for the entire GPX and each track segment:
+
+```ruby
+result = GpxDoctor::Parser.parse("route.gpx", params: { full_poi_data: true })
+result.pois
+# =>
+# {
+#   start:  { lon: 16.38, lat: 48.23, ele: 170.0, distance: 0.0 },
+#   finish: { lon: 16.39, lat: 48.24, ele: 175.0, distance: 1.42 },
+#   segments: [
+#     {
+#       start:  { lon: 16.38, lat: 48.23, ele: 170.0, distance: 0.0 },
+#       finish: { lon: 16.39, lat: 48.24, ele: 175.0, distance: 1.42 }
+#     }
+#   ]
+# }
+```
+
+- **`start`** / **`finish`** — first and last geographic point across all routes and track segments, each with `lon`, `lat`, `distance` (and `ele` when present). `start` always has `distance: 0.0`; `finish` distance is the sum of all individual route/segment lengths.
+- **`segments`** — present only when the GPX contains track segments. Each entry is `{start:, finish:}` for one `<trkseg>`, with distances measured from the beginning of that segment (`start` is always `distance: 0.0`).
+- The `ele` key is omitted for points that have no elevation value.
+- Distance values respect the configured `unit_system` (kilometres for `:metric`, miles for `:imperial`).
 
 ## Building GPX files
 
