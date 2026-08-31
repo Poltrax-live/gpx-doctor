@@ -298,7 +298,7 @@ GpxDoctor::Builder.build_file(result, 'output.gpx')
 | `distance_to_next` | Float | Distance to next point (metres or feet based on `unit_system`) — set by `segment_statistics: true` |
 | `elevation_change` | Float | Elevation change to next point (metres or feet based on `unit_system`) — set by `segment_statistics: true` |
 | `direction` | Float | Bearing to next point (0–360°) — set by `segment_statistics: true` |
-| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres or miles based on `unit_system`) — set by `cumulative_distance: true` |
+| `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres or miles based on `unit_system`) — set by `cumulative_distance: true`; also set (to the same value as `label`) for points inserted by `label_interval` |
 | `label` | Float | Cumulative distance mark for a point inserted by `label_interval` (kilometres or miles based on `unit_system`); `nil` for points not created for labelling — set by `label_interval` |
 
 `Waypoint#to_h` returns a hash of all non-nil fields.

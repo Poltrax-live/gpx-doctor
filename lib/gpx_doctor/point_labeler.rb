@@ -34,6 +34,7 @@ module GpxDoctor
       cumulative = cumulative_distances(points)
 
       result = [points.first]
+      label_interval = label_interval.to_f
       target = label_interval
 
       points.each_cons(2).with_index do |(a, b), i|
@@ -87,7 +88,8 @@ module GpxDoctor
         lon:   a.lon + fraction * (b.lon - a.lon),
         ele:   ele,
         time:  time,
-        label: target
+        label: target,
+        cumulative_distance: target
       )
     end
   end
