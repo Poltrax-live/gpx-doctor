@@ -863,6 +863,36 @@ RSpec.describe GpxDoctor::Parser do
       pts = result.tracks.first.segments.first.points
       expect(pts.length).to eq(4)
     end
+
+    it 'runs label_interval after cumulative_distance and produces the same marks either way' do
+      result = described_class.parse_string(
+        gpx_two_points,
+        params: { cumulative_distance: true, label_interval: 0.5 }
+      )
+      pts = result.routes.first.points
+      expect(pts.length).to eq(4)
+      labels = pts.map(&:label).compact
+      expect(labels).to eq([0.5, 1.0])
+    end
+
+    it 'reuses cumulative_distance instead of recalculating it when both params are given' do
+      # Any call to DistanceCalculator.distance beyond what's needed for the
+      # original two-point segment (from CumulativeDistanceEnhancer) would
+      # indicate label_points is recomputing distances instead of reusing them.
+      original_distance_calls = 0
+      allow(GpxDoctor::DistanceCalculator).to receive(:distance).and_wrap_original do |method, *args|
+        original_distance_calls += 1
+        method.call(*args)
+      end
+
+      described_class.parse_string(
+        gpx_two_points,
+        params: { cumulative_distance: true, label_interval: 0.5 }
+      )
+
+      # Only the single pair of original route points should be measured.
+      expect(original_distance_calls).to eq(1)
+    end
   end
 
   # -------------------------------------------------------------------

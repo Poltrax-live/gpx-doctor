@@ -11,6 +11,11 @@ module GpxDoctor
     # measured as cumulative distance from the start of +points+ (kilometres
     # for :metric, miles for :imperial — see GpxDoctor.configuration.unit_system).
     #
+    # When +points+ already carry a +cumulative_distance+ (set by
+    # GpxDoctor::CumulativeDistanceEnhancer), those values are reused instead
+    # of being recalculated. Otherwise cumulative distance is computed from
+    # scratch.
+    #
     # Existing points are left untouched. A new point is inserted between the
     # two existing points that bracket each label distance, with lat/lon
     # always interpolated, and ele/time interpolated only when both endpoints
@@ -50,7 +55,13 @@ module GpxDoctor
 
     private
 
+    # Returns the cumulative distance of every point, reusing each point's
+    # already-computed +cumulative_distance+ (see CumulativeDistanceEnhancer)
+    # when available, to avoid walking the points and recalculating distances
+    # a second time.
     def cumulative_distances(points)
+      return points.map(&:cumulative_distance) if precomputed?(points)
+
       unit_system = GpxDoctor.configuration.unit_system
 
       cumulative = [0.0]
@@ -60,6 +71,10 @@ module GpxDoctor
         cumulative << cumulative.last + distance_converted
       end
       cumulative
+    end
+
+    def precomputed?(points)
+      points.first.respond_to?(:cumulative_distance) && !points.first.cumulative_distance.nil?
     end
 
     def interpolate(a, b, start_dist, end_dist, target)

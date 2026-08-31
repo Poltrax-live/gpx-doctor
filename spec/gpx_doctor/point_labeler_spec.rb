@@ -123,5 +123,34 @@ RSpec.describe GpxDoctor::PointLabeler do
       expect(result.length).to eq(3)
       expect(result[1].label).to be_within(1e-6).of(1.0)
     end
+
+    context 'when points already carry a precomputed cumulative_distance' do
+      it 'reuses the precomputed values instead of recalculating from lat/lon' do
+        # Geographically these points are ~0.9 km and ~1.2 km apart, which would
+        # normally place a single label at the 1.0 mark. Overriding
+        # cumulative_distance with very different values (0, 2, 4) proves the
+        # overridden values — not the real geographic distance — are used.
+        pts = points_at_distances([0.0, 0.9, 1.2])
+        pts[0].cumulative_distance = 0.0
+        pts[1].cumulative_distance = 2.0
+        pts[2].cumulative_distance = 4.0
+
+        result = labeler.label(pts, 1.0)
+        # Marks at 1.0 (between pts[0] and pts[1]) and 3.0 (between pts[1] and pts[2])
+        expect(result.length).to eq(5)
+        labels = result.map(&:label).compact
+        expect(labels).to eq([1.0, 3.0])
+      end
+
+      it 'does not mutate the precomputed cumulative_distance values' do
+        pts = points_at_distances([0.0, 1.0, 2.0])
+        pts[0].cumulative_distance = 0.0
+        pts[1].cumulative_distance = 1.0
+        pts[2].cumulative_distance = 2.0
+
+        labeler.label(pts, 1.0)
+        expect(pts.map(&:cumulative_distance)).to eq([0.0, 1.0, 2.0])
+      end
+    end
   end
 end
