@@ -87,7 +87,8 @@ module GpxDoctor
         lon:   a.lon + fraction * (b.lon - a.lon),
         ele:   ele,
         time:  time,
-        label: target
+        label: target,
+        cumulative_distance: target
       )
     end
   end
