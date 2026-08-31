@@ -151,6 +151,19 @@ RSpec.describe GpxDoctor::PointLabeler do
         labeler.label(pts, 1.0)
         expect(pts.map(&:cumulative_distance)).to eq([0.0, 1.0, 2.0])
       end
+
+      it 'falls back to recalculating when only some points have cumulative_distance set' do
+        # pts[2] is missing cumulative_distance — treat the whole set as not
+        # precomputed rather than silently treating the missing value as nil
+        # during interpolation.
+        pts = points_at_distances([0.0, 0.9, 1.2])
+        pts[0].cumulative_distance = 0.0
+        pts[1].cumulative_distance = 0.9
+
+        result = labeler.label(pts, 1.0)
+        expect(result.length).to eq(4)
+        expect(result[2].label).to be_within(1e-6).of(1.0)
+      end
     end
   end
 end

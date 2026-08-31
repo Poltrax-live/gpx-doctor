@@ -74,7 +74,7 @@ module GpxDoctor
     end
 
     def precomputed?(points)
-      points.first.respond_to?(:cumulative_distance) && !points.first.cumulative_distance.nil?
+      points.all? { |p| p.respond_to?(:cumulative_distance) && !p.cumulative_distance.nil? }
     end
 
     def interpolate(a, b, start_dist, end_dist, target)
