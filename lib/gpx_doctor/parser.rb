@@ -52,6 +52,7 @@ module GpxDoctor
       eff_max_dist = @params[:max_distance] || effective_max_distance(result)
       split_segments(result, eff_max_dist) if eff_max_dist
       select_max_points(result) if @params[:max_points]
+      label_points(result) if @params[:label_interval]
       enhance_statistics(result) if @params[:segment_statistics]
       enhance_cumulative_distance(result) if @params[:cumulative_distance]
       enhance_elevations(result) if @params[:enhance_elevation]
@@ -259,6 +260,15 @@ module GpxDoctor
       result.routes.each { |route| route.points = selector.select(route.points, n) }
       result.tracks.each do |track|
         track.segments.each { |seg| seg.points = selector.select(seg.points, n) }
+      end
+    end
+
+    def label_points(result)
+      labeler = PointLabeler.new
+      interval = @params[:label_interval]
+      result.routes.each { |route| route.points = labeler.label(route.points, interval) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| seg.points = labeler.label(seg.points, interval) }
       end
     end
 

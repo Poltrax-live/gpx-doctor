@@ -8,7 +8,7 @@ module GpxDoctor
         sym type fix sat hdop vdop pdop ageofdgpsdata dgpsid
       ].freeze
 
-      STATISTICS_FIELDS = %i[distance_to_next elevation_change direction cumulative_distance].freeze
+      STATISTICS_FIELDS = %i[distance_to_next elevation_change direction cumulative_distance label].freeze
 
       attr_accessor(*STATISTICS_FIELDS)
 
