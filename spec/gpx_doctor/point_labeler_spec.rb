@@ -99,6 +99,13 @@ RSpec.describe GpxDoctor::PointLabeler do
       expect(result.map(&:label)).to all(be_nil)
     end
 
+    it 'advances past consecutive marks that each coincide with an existing point' do
+      pts = points_at_distances([0.0, 1.0, 2.0, 3.0])
+      result = labeler.label(pts, 1.0)
+      expect(result.length).to eq(pts.length)
+      expect(result.map(&:label)).to all(be_nil)
+    end
+
     it 'does not insert any point when label_interval exceeds the total distance' do
       pts = points_at_distances([0.0, 0.5])
       result = labeler.label(pts, 10.0)

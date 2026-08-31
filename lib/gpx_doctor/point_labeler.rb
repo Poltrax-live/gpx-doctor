@@ -35,8 +35,10 @@ module GpxDoctor
         start_dist = cumulative[i]
         end_dist = cumulative[i + 1]
 
-        while target < end_dist - EPSILON
-          result << interpolate(a, b, start_dist, end_dist, target) if target > start_dist + EPSILON
+        while target <= end_dist + EPSILON
+          if target > start_dist + EPSILON && target < end_dist - EPSILON
+            result << interpolate(a, b, start_dist, end_dist, target)
+          end
           target += label_interval
         end
 
