@@ -89,6 +89,7 @@ result = GpxDoctor::Parser.parse("path/to/file.gpx", params: {
   max_points:         500,           # reduce each segment to at most this many points
   segment_statistics: true,          # compute distance_to_next, elevation_change, direction for each point
   cumulative_distance: true,         # add cumulative distance from start of each segment/route
+  label_interval:     1.0,           # insert an interpolated, labelled point at every interval mark (kilometres or miles based on unit_system)
   enhance_elevation:  true,          # fetch missing elevations from the configured elevation server
   full_poi_data:      true           # populate result.pois with start/finish boundary data for the whole GPX and each track segment
 })
@@ -100,12 +101,15 @@ Processing is applied in the following order:
 2. `max_points` — point reduction
 3. `segment_statistics` — per-point statistics (distance, bearing, elevation change)
 4. `cumulative_distance` — cumulative distance from the start of each segment/route
-5. `enhance_elevation` — elevation lookup via the elevation server
-6. `full_poi_data` — POI boundary extraction (start, finish, and per-segment boundaries)
+5. `label_interval` — labelled point insertion
+6. `enhance_elevation` — elevation lookup via the elevation server
+7. `full_poi_data` — POI boundary extraction (start, finish, and per-segment boundaries)
 
 `enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
 
 `cumulative_distance: true` adds a `cumulative_distance` field to each point, representing the cumulative distance in kilometers from the start of its segment or route. For tracks with multiple segments, each segment's cumulative distance starts at 0.0 (gaps between segments are not included in the calculation).
+
+`label_interval: 1.0` walks each route/segment and inserts an interpolated point at every multiple of the given interval (measured as cumulative distance from the start, in kilometres for `:metric` or miles for `:imperial` — see **Unit System** above), setting the new point's `label` field to that distance (e.g. `1.0` for the point at the 1.0 km/mi mark). A mark falling on an existing point (within a small tolerance) is skipped rather than duplicated. `label_interval` runs after `cumulative_distance`, reusing its `cumulative_distance` values instead of recalculating them when `cumulative_distance: true` is also given. **Because `label_interval` is applied after `max_points`, the resulting number of points may exceed `max_points`.**
 
 `full_poi_data: true` populates `result.pois` with the first and last geographic point of the entire GPX (across all routes and track segments), plus optional per-segment boundary data. Distances within each segment start at 0.0 and reflect that segment's length only. The `ele` key is omitted for points that have no elevation value. The global `finish` distance is the sum of all individual collection lengths. See **`result.pois`** below for the output shape.
 
@@ -295,6 +299,7 @@ GpxDoctor::Builder.build_file(result, 'output.gpx')
 | `elevation_change` | Float | Elevation change to next point (metres or feet based on `unit_system`) — set by `segment_statistics: true` |
 | `direction` | Float | Bearing to next point (0–360°) — set by `segment_statistics: true` |
 | `cumulative_distance` | Float | Cumulative distance from segment/route start (kilometres or miles based on `unit_system`) — set by `cumulative_distance: true` |
+| `label` | Float | Cumulative distance mark for a point inserted by `label_interval` (kilometres or miles based on `unit_system`); `nil` for points not created for labelling — set by `label_interval` |
 
 `Waypoint#to_h` returns a hash of all non-nil fields.
 

@@ -54,6 +54,7 @@ module GpxDoctor
       select_max_points(result) if @params[:max_points]
       enhance_statistics(result) if @params[:segment_statistics]
       enhance_cumulative_distance(result) if @params[:cumulative_distance]
+      label_points(result) if @params[:label_interval]
       enhance_elevations(result) if @params[:enhance_elevation]
       result.pois = build_pois(result) if @params[:full_poi_data]
 
@@ -275,6 +276,15 @@ module GpxDoctor
       result.routes.each { |route| enhancer.enhance(route.points) }
       result.tracks.each do |track|
         track.segments.each { |seg| enhancer.enhance(seg.points) }
+      end
+    end
+
+    def label_points(result)
+      labeler = PointLabeler.new
+      interval = @params[:label_interval]
+      result.routes.each { |route| route.points = labeler.label(route.points, interval) }
+      result.tracks.each do |track|
+        track.segments.each { |seg| seg.points = labeler.label(seg.points, interval) }
       end
     end
 

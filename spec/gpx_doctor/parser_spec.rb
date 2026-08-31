@@ -797,6 +797,105 @@ RSpec.describe GpxDoctor::Parser do
   end
 
   # -------------------------------------------------------------------
+  # label_interval integration
+  # -------------------------------------------------------------------
+  context 'with label_interval enabled' do
+    # Two route points ~1112 m apart (0.01 deg lat) so cumulative distance
+    # goes from 0.0 km to ~1.1132 km.
+    let(:gpx_two_points) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <name>Label Route</name>
+            <rtept lat="48.0"  lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.01" lon="16.0"><ele>200.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+    end
+
+    it 'inserts labelled points at each interval mark' do
+      result = described_class.parse_string(gpx_two_points, params: { label_interval: 0.5 })
+      pts = result.routes.first.points
+      # Marks at 0.5 km and 1.0 km fall strictly between the two original points
+      expect(pts.length).to eq(4)
+      labels = pts.map(&:label).compact
+      expect(labels).to eq([0.5, 1.0])
+    end
+
+    it 'does not add labels when label_interval is absent' do
+      result = described_class.parse_string(gpx_two_points)
+      expect(result.routes.first.points.length).to eq(2)
+    end
+
+    it 'leaves the label field nil on points not created for labelling' do
+      result = described_class.parse_string(gpx_two_points, params: { label_interval: 0.5 })
+      pts = result.routes.first.points
+      expect(pts.first.label).to be_nil
+      expect(pts.last.label).to be_nil
+    end
+
+    it 'is applied after max_points, so the point count may exceed max_points' do
+      result = described_class.parse_string(
+        gpx_two_points,
+        params: { max_points: 2, label_interval: 0.5 }
+      )
+      pts = result.routes.first.points
+      # max_points already reduced to 2 (first & last); label_interval then adds 2 more
+      expect(pts.length).to eq(4)
+      expect(pts.length).to be > 2
+    end
+
+    it 'labels track segment points as well as route points' do
+      gpx = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <trk>
+            <trkseg>
+              <trkpt lat="48.0"  lon="16.0"><ele>100.0</ele></trkpt>
+              <trkpt lat="48.01" lon="16.0"><ele>200.0</ele></trkpt>
+            </trkseg>
+          </trk>
+        </gpx>
+      XML
+      result = described_class.parse_string(gpx, params: { label_interval: 0.5 })
+      pts = result.tracks.first.segments.first.points
+      expect(pts.length).to eq(4)
+    end
+
+    it 'runs label_interval after cumulative_distance and produces the same marks either way' do
+      result = described_class.parse_string(
+        gpx_two_points,
+        params: { cumulative_distance: true, label_interval: 0.5 }
+      )
+      pts = result.routes.first.points
+      expect(pts.length).to eq(4)
+      labels = pts.map(&:label).compact
+      expect(labels).to eq([0.5, 1.0])
+    end
+
+    it 'reuses cumulative_distance instead of recalculating it when both params are given' do
+      # Any call to DistanceCalculator.distance beyond what's needed for the
+      # original two-point segment (from CumulativeDistanceEnhancer) would
+      # indicate label_points is recomputing distances instead of reusing them.
+      original_distance_calls = 0
+      allow(GpxDoctor::DistanceCalculator).to receive(:distance).and_wrap_original do |method, *args|
+        original_distance_calls += 1
+        method.call(*args)
+      end
+
+      described_class.parse_string(
+        gpx_two_points,
+        params: { cumulative_distance: true, label_interval: 0.5 }
+      )
+
+      # Only the single pair of original route points should be measured.
+      expect(original_distance_calls).to eq(1)
+    end
+  end
+
+  # -------------------------------------------------------------------
   # cumulative_distance integration
   # -------------------------------------------------------------------
   context 'with cumulative_distance enabled' do
