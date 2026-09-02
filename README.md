@@ -116,18 +116,27 @@ Processing is applied in the following order:
 ## Accessing data
 
 ```ruby
-result.points    # => [#<Waypoint lat=…, lon=…, ele=…>, …]  (all geographic points)
-result.waypoints # => [#<Waypoint …>]  (top-level <wpt> elements only)
-result.routes    # => [#<Route …>]
-result.tracks    # => [#<Track …>]
-result.metadata  # => #<Metadata …>  (or nil)
-result.pois      # => Hash (only when parsed with full_poi_data: true, otherwise nil)
+result.points     # => [#<Waypoint lat=…, lon=…, ele=…>, …]  (the path)
+result.all_points # => [#<Waypoint …>, …]  (the path plus standalone waypoints)
+result.waypoints  # => [#<Waypoint …>]  (top-level <wpt> elements only)
+result.routes     # => [#<Route …>]
+result.tracks     # => [#<Track …>]
+result.metadata   # => #<Metadata …>  (or nil)
+result.pois       # => Hash (only when parsed with full_poi_data: true, otherwise nil)
 ```
 
-`result.points` is a flat array containing **all** geographic points from:
-- Top-level `<wpt>` elements
+`result.points` is a flat array describing **the path**, in order:
 - `<rtept>` elements inside each `<rte>`
 - `<trkpt>` elements inside each `<trkseg>` inside each `<trk>`
+
+Top-level `<wpt>` elements are **not** included. They are points of interest that may
+sit anywhere on — or off — the path, and exporters list them in file order rather than
+path order, so treating them as path points draws straight lines back and forth across
+the map. Read them from `result.waypoints`, or use `result.all_points` (standalone
+waypoints first, then the path) when you genuinely want every geographic point in the
+file. All processing params (`max_points`, `cumulative_distance`, `label_interval`,
+`segment_statistics`, `full_poi_data`) operate on the path only; `enhance_elevation` is
+the exception and fills in elevations for standalone waypoints too.
 
 ### `result.pois`
 
