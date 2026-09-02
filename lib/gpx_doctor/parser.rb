@@ -8,8 +8,25 @@ module GpxDoctor
     GPX_NS = 'http://www.topografix.com/GPX/1/1'
 
     Result = Struct.new(:waypoints, :routes, :tracks, :metadata, :pois, keyword_init: true) do
+      # The path described by the file, in order: <rtept> then <trkpt>.
+      #
+      # Standalone <wpt> elements are deliberately NOT part of it. They are
+      # points of interest scattered anywhere on (or off) the path — exporters
+      # such as komoot emit them for highlights like bridges or churches — so
+      # folding them in front of the path turns a valid route into a zig-zag of
+      # straight lines back and forth across the whole map. Every other stage of
+      # the gem (split_segments, select_max_points, enhance_statistics,
+      # enhance_cumulative_distance, label_points, build_pois) already walks
+      # routes and track segments only; this makes #points agree with them.
+      #
+      # Use #all_points for every geographic point in the file, waypoints included.
       def points
-        waypoints + routes.flat_map(&:points) + tracks.flat_map(&:points)
+        routes.flat_map(&:points) + tracks.flat_map(&:points)
+      end
+
+      # Every geographic point in the file: standalone waypoints followed by the path.
+      def all_points
+        waypoints + points
       end
     end
 
@@ -224,7 +241,9 @@ module GpxDoctor
       config = GpxDoctor.configuration
       return unless config.elevation_server && config.elevation_server_url
 
-      ElevationClient.new.enhance(result.points)
+      # all_points, not points: standalone waypoints are POIs the caller still
+      # wants an elevation for, even though they are not part of the path.
+      ElevationClient.new.enhance(result.all_points)
     end
 
     def effective_max_distance(result)

@@ -130,13 +130,78 @@ RSpec.describe GpxDoctor::Parser do
   end
 
   describe '#points' do
-    it 'contains all geographic points (wpt + rtept + trkpt)' do
-      # 1 wpt + 2 rtept + 2 trkpt = 5
-      expect(result.points.length).to eq(5)
+    it 'contains the path only (rtept + trkpt)' do
+      # 2 rtept + 2 trkpt = 4; the standalone <wpt> is not part of the path
+      expect(result.points.length).to eq(4)
+    end
+
+    it 'excludes standalone waypoints' do
+      expect(result.points).not_to include(result.waypoints.first)
+    end
+
+    it 'starts at the first route point, not at a standalone waypoint' do
+      expect(result.points.first.lat).to be_within(0.0001).of(48.21)
+      expect(result.points.first.lon).to be_within(0.0001).of(16.36)
     end
 
     it 'contains Waypoint objects' do
       expect(result.points).to all(be_a(GpxDoctor::Models::Waypoint))
+    end
+
+    context 'when standalone waypoints sit far away from the path' do
+      # Reproduces a komoot export: <wpt> highlights listed before the track, in
+      # file order rather than path order. Folding them into #points prepended
+      # them to the route, which drew straight lines hundreds of kilometres long
+      # between them and back to the real start.
+      let(:xml) do
+        <<~GPX
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx version="1.1" creator="komoot" xmlns="http://www.topografix.com/GPX/1/1">
+            <wpt lat="52.428173" lon="20.694076"><name>Bridge far north</name></wpt>
+            <wpt lat="51.987754" lon="21.231431"><name>Bridge far south</name></wpt>
+            <trk><trkseg>
+              <trkpt lat="52.342659" lon="21.212839"><ele>93.0</ele></trkpt>
+              <trkpt lat="52.342664" lon="21.212904"><ele>93.0</ele></trkpt>
+            </trkseg></trk>
+          </gpx>
+        GPX
+      end
+      let(:komoot_result) { described_class.parse_string(xml) }
+
+      it 'keeps them out of the path' do
+        expect(komoot_result.points.length).to eq(2)
+        expect(komoot_result.points.map(&:name)).to all(be_nil)
+      end
+
+      it 'still exposes them as waypoints' do
+        expect(komoot_result.waypoints.map(&:name)).to eq(['Bridge far north', 'Bridge far south'])
+      end
+
+      it 'starts the path at the first track point' do
+        expect(komoot_result.points.first.lat).to be_within(0.000001).of(52.342659)
+      end
+
+      it 'gives every path point a cumulative distance' do
+        parsed = described_class.parse_string(xml, params: { cumulative_distance: true })
+
+        expect(parsed.points.map(&:cumulative_distance)).to all(be_a(Float))
+      end
+    end
+  end
+
+  describe '#all_points' do
+    it 'contains every geographic point (wpt + rtept + trkpt)' do
+      # 1 wpt + 2 rtept + 2 trkpt = 5
+      expect(result.all_points.length).to eq(5)
+    end
+
+    it 'lists standalone waypoints before the path' do
+      expect(result.all_points.first).to eq(result.waypoints.first)
+      expect(result.all_points.drop(1)).to eq(result.points)
+    end
+
+    it 'contains Waypoint objects' do
+      expect(result.all_points).to all(be_a(GpxDoctor::Models::Waypoint))
     end
   end
 
