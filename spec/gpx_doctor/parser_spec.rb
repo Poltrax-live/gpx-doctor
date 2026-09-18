@@ -450,9 +450,8 @@ RSpec.describe GpxDoctor::Parser do
   end
 
   # -------------------------------------------------------------------
-  # Fixture: 3hunt.gpx  (GPX 1.0 — different namespace)
-  # The parser only recognises the GPX 1.1 namespace, so the file
-  # should still parse without error but yield no elements.
+  # Fixture: 3hunt.gpx  (GPX 1.0 — http://www.topografix.com/GPX/1/0)
+  # The Validator accepts GPX 1.0, so the parser must read it too.
   # -------------------------------------------------------------------
   context 'with 3hunt.gpx fixture (GPX 1.0)' do
     let(:hunt_path)   { File.expand_path('../fixtures/3hunt.gpx', __dir__) }
@@ -466,15 +465,69 @@ RSpec.describe GpxDoctor::Parser do
       expect(hunt_result).to be_a(GpxDoctor::Parser::Result)
     end
 
-    it 'returns empty collections for a GPX 1.0 file' do
-      expect(hunt_result.waypoints).to be_empty
+    it 'reads waypoints and tracks from the GPX 1.0 namespace' do
+      expect(hunt_result.waypoints.size).to eq(60)
       expect(hunt_result.routes).to be_empty
-      expect(hunt_result.tracks).to be_empty
-      expect(hunt_result.points).to be_empty
+      expect(hunt_result.tracks.size).to eq(1)
+      expect(hunt_result.tracks.first.name).to eq('The Hunt 1000 Australian Alps Trail')
     end
 
-    it 'has no metadata' do
+    it 'returns the track points as the path' do
+      expect(hunt_result.points.size).to eq(55_552)
+      expect(hunt_result.points.first.lat).to be_a(Float)
+      expect(hunt_result.points.first.ele).to be_a(Float)
+    end
+
+    it 'has no metadata (GPX 1.0 has no <metadata> element)' do
       expect(hunt_result.metadata).to be_nil
+    end
+  end
+
+  # -------------------------------------------------------------------
+  # GPX 1.0 namespace with a <metadata> block (e.g. Traseo export)
+  # -------------------------------------------------------------------
+  context 'with a GPX 1.0 namespaced track (Traseo-style export)' do
+    let(:gpx10_xml) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.0" creator="Traseo" xmlns="http://www.topografix.com/GPX/1/0">
+          <metadata><name>Loop</name></metadata>
+          <trk>
+            <name>Loop</name>
+            <trkseg>
+              <trkpt lat="50.832754" lon="15.5176653"><ele>702.72</ele></trkpt>
+              <trkpt lat="50.8332752" lon="15.5162784"><ele>702.6</ele></trkpt>
+              <trkpt lat="50.8341211" lon="15.5140583"><ele>706.15</ele></trkpt>
+            </trkseg>
+          </trk>
+        </gpx>
+      XML
+    end
+    let(:result) { described_class.parse_string(gpx10_xml, params: { cumulative_distance: true }) }
+
+    it 'returns all track points' do
+      expect(result.points.size).to eq(3)
+      expect(result.points.map(&:ele)).to eq([702.72, 702.6, 706.15])
+    end
+
+    it 'computes cumulative distance' do
+      expect(result.points.first.cumulative_distance).to eq(0.0)
+      expect(result.points.last.cumulative_distance).to be > 0.0
+    end
+  end
+
+  context 'with an unrecognised root namespace' do
+    let(:xml) do
+      <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.1" xmlns="http://example.com/not-gpx">
+          <trk><trkseg><trkpt lat="1.0" lon="2.0"/></trkseg></trk>
+        </gpx>
+      XML
+    end
+
+    it 'yields no elements' do
+      expect(described_class.parse_string(xml).points).to be_empty
     end
   end
 

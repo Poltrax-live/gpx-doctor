@@ -6,6 +6,11 @@ require 'time'
 module GpxDoctor
   class Parser
     GPX_NS = 'http://www.topografix.com/GPX/1/1'
+    GPX_10_NS = 'http://www.topografix.com/GPX/1/0'
+    # Validator accepts both versions, so the parser must read both. Element
+    # names used here (wpt, rte, trk, trkseg, trkpt, ele, time, name) are the
+    # same in 1.0 and 1.1 — only the namespace differs.
+    GPX_NAMESPACES = [GPX_NS, GPX_10_NS].freeze
 
     Result = Struct.new(:waypoints, :routes, :tracks, :metadata, :pois, keyword_init: true) do
       # The path described by the file, in order: <rtept> then <trkpt>.
@@ -48,7 +53,7 @@ module GpxDoctor
 
       def detect_namespace(doc)
         root_ns = doc.root&.namespace&.href
-        root_ns == GPX_NS ? GPX_NS : nil
+        GPX_NAMESPACES.include?(root_ns) ? root_ns : nil
       end
     end
 
