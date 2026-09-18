@@ -1,6 +1,6 @@
 # GPX Doctor
 
-A Ruby gem for parsing and manipulating GPX 1.1 routes.
+A Ruby gem for parsing and manipulating GPX routes. The parser reads GPX 1.1 and GPX 1.0 (`http://www.topografix.com/GPX/1/0`, e.g. Traseo and older RideWithGPS exports); the builder always writes GPX 1.1.
 
 ## Installation
 
