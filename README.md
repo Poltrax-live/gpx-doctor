@@ -1,6 +1,6 @@
 # GPX Doctor
 
-A Ruby gem for parsing and manipulating GPX routes. The parser reads GPX 1.1 and GPX 1.0 (`http://www.topografix.com/GPX/1/0`, e.g. Traseo and older RideWithGPS exports); the builder always writes GPX 1.1.
+A Ruby gem for parsing and manipulating GPX routes and activity files. The parser reads GPX 1.1 and GPX 1.0 (`http://www.topografix.com/GPX/1/0`, e.g. Traseo and older RideWithGPS exports); the builder always writes GPX 1.1.
 
 ## Installation
 
@@ -91,7 +91,8 @@ result = GpxDoctor::Parser.parse("path/to/file.gpx", params: {
   cumulative_distance: true,         # add cumulative distance from start of each segment/route
   label_interval:     1.0,           # insert an interpolated, labelled point at every interval mark (kilometres or miles based on unit_system)
   enhance_elevation:  true,          # fetch missing elevations from the configured elevation server
-  full_poi_data:      true           # populate result.pois with start/finish boundary data for the whole GPX and each track segment
+  full_poi_data:      true,          # populate result.pois with start/finish boundary data for the whole GPX and each track segment
+  performance_analysis: true         # populate result.analysis with activity performance data (requires path timestamps)
 })
 ```
 
@@ -104,6 +105,7 @@ Processing is applied in the following order:
 5. `label_interval` — labelled point insertion
 6. `enhance_elevation` — elevation lookup via the elevation server
 7. `full_poi_data` — POI boundary extraction (start, finish, and per-segment boundaries)
+8. `performance_analysis` — activity performance analysis for timed path points
 
 `enhance_elevation: true` requires the elevation server to be configured (see **Configuration** above). It only fills in points that have no elevation value; existing elevations are left unchanged.
 
@@ -112,6 +114,12 @@ Processing is applied in the following order:
 `label_interval: 1.0` walks each route/segment and inserts an interpolated point at every multiple of the given interval (measured as cumulative distance from the start, in kilometres for `:metric` or miles for `:imperial` — see **Unit System** above), setting the new point's `label` field to that distance (e.g. `1.0` for the point at the 1.0 km/mi mark). A mark falling on an existing point (within a small tolerance) is skipped rather than duplicated. `label_interval` runs after `cumulative_distance`, reusing its `cumulative_distance` values instead of recalculating them when `cumulative_distance: true` is also given. **Because `label_interval` is applied after `max_points`, the resulting number of points may exceed `max_points`.**
 
 `full_poi_data: true` populates `result.pois` with the first and last geographic point of the entire GPX (across all routes and track segments), plus optional per-segment boundary data. Distances within each segment start at 0.0 and reflect that segment's length only. The `ele` key is omitted for points that have no elevation value. The global `finish` distance is the sum of all individual collection lengths. See **`result.pois`** below for the output shape.
+
+`performance_analysis: true` adds an `analysis` hash to the parse result. It raises `GpxDoctor::InvalidGpxError` if no route/track path timestamps are present. Returned fields include:
+
+- Time-based metrics (when timestamps are present): `total_time` (seconds), `distance` (km), `avg_speed` (km/h), `top_speed` (km/h), `speed_array` (km/h for each consecutive timed point pair)
+- Elevation-based metrics (when elevations are present): `ascent`, `descent`, `elevation_change_array`
+- Combined time + elevation metrics (when both are present on consecutive point pairs): `top_vertical_speed`, `vertical_speed_array`
 
 ## Accessing data
 
@@ -123,6 +131,7 @@ result.routes     # => [#<Route …>]
 result.tracks     # => [#<Track …>]
 result.metadata   # => #<Metadata …>  (or nil)
 result.pois       # => Hash (only when parsed with full_poi_data: true, otherwise nil)
+result.analysis   # => Hash (only when parsed with performance_analysis: true, otherwise nil)
 ```
 
 `result.points` is a flat array describing **the path**, in order:
@@ -135,7 +144,7 @@ path order, so treating them as path points draws straight lines back and forth 
 the map. Read them from `result.waypoints`, or use `result.all_points` (standalone
 waypoints first, then the path) when you genuinely want every geographic point in the
 file. All processing params (`max_points`, `cumulative_distance`, `label_interval`,
-`segment_statistics`, `full_poi_data`) operate on the path only; `enhance_elevation` is
+`segment_statistics`, `full_poi_data`, `performance_analysis`) operate on the path only; `enhance_elevation` is
 the exception and fills in elevations for standalone waypoints too.
 
 ### `result.pois`
