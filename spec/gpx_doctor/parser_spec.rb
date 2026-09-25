@@ -1210,6 +1210,46 @@ RSpec.describe GpxDoctor::Parser do
       end.to raise_error(GpxDoctor::InvalidGpxError, /timestamps/)
     end
 
+    it 'raises InvalidGpxError when only standalone waypoints have timestamps' do
+      gpx_with_wpt_time_only = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <wpt lat="48.2" lon="16.3">
+            <time>2024-06-01T08:00:00Z</time>
+          </wpt>
+          <rte>
+            <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.01" lon="16.01"><ele>120.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+
+      expect do
+        described_class.parse_string(gpx_with_wpt_time_only, params: { performance_analysis: true })
+      end.to raise_error(GpxDoctor::InvalidGpxError, /timestamps/)
+    end
+
+    it 'returns only time metrics when elevation is missing on path points' do
+      gpx_without_ele = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <rtept lat="48.0" lon="16.0"><time>2024-06-01T08:00:00Z</time></rtept>
+            <rtept lat="48.01" lon="16.01"><time>2024-06-01T08:05:00Z</time></rtept>
+          </rte>
+        </gpx>
+      XML
+
+      analysis = described_class.parse_string(gpx_without_ele, params: { performance_analysis: true }).analysis
+
+      expect(analysis).to include(:total_time, :distance, :avg_speed, :top_speed, :speed_array)
+      expect(analysis).not_to have_key(:ascent)
+      expect(analysis).not_to have_key(:descent)
+      expect(analysis).not_to have_key(:elevation_change_array)
+      expect(analysis).not_to have_key(:top_vertical_speed)
+      expect(analysis).not_to have_key(:vertical_speed_array)
+    end
+
     it 'does not populate analysis when performance_analysis is not set' do
       expect(result.analysis).to be_nil
     end
@@ -1304,4 +1344,3 @@ RSpec.describe GpxDoctor::Parser do
     end
   end
 end
-
