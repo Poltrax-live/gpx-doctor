@@ -3,8 +3,7 @@
 This changelog is based on repository commit history.
 
 ## [0.8.0] - 2026-09-28
-- Add performance analysis for activity GPX files (`99e2e8f`)
-- Add broader performance analysis test coverage (`2e4c2bd`)
+- Add performance analysis for activity GPX files with broader test coverage (`99e2e8f`, `2e4c2bd`)
 
 ## [0.7.0] - 2026-09-18
 - Parse GPX 1.0 namespaced files (`d3d060f`)
@@ -13,24 +12,17 @@ This changelog is based on repository commit history.
 - Keep standalone waypoints out of `Result#points` (`34ec236`)
 
 ## [0.6.1] - 2026-08-31
-- Set `cumulative_distance` on `label_interval` inserted points (`d826dec`)
-- Coerce `label_interval` target to float (`f6ad97a`)
+- Improve `label_interval` point generation by setting `cumulative_distance` and coercing target values (`d826dec`, `f6ad97a`)
 
 ## [0.6.0] - 2026-08-31
-- Add `label_interval` option to insert labelled points at distance marks (`0e24e64`)
-- Fix target advancement in `PointLabeler` and add regression test (`b18ec1f`)
-- Run `label_interval` after cumulative distance and reuse precomputed distances (`d92b360`)
-- Require cumulative distance for all points reused in `PointLabeler` (`b645fc9`)
+- Add `label_interval` support with distance reuse, target advancement fixes, and cumulative-distance safeguards (`0e24e64`, `b18ec1f`, `d92b360`, `b645fc9`)
 
 ## [0.5.0] - 2026-08-16
-- Add `full_poi_data` parser param returning POIs with start/finish/segments (`fe6392f`)
-- Document `full_poi_data` and parse params in README (`9f1318c`)
+- Add `full_poi_data` parser param returning POIs with start/finish/segments and document parse params (`fe6392f`, `9f1318c`)
 
 ## [0.4.0] - 2026-07-07
-- Add unit system configuration and converters (`3b013c7`)
-- Add comprehensive RSpec tests for imperial units (`56b4c68`)
-- Convert cumulative distance to kilometers (`23a32f3`)
-- Add cumulative distance parser feature and documentation (`6f5013d`, `920caa7`)
+- Add unit system configuration/converters with comprehensive imperial-unit test coverage (`3b013c7`, `56b4c68`)
+- Add cumulative-distance parser support in kilometers with documentation (`6f5013d`, `23a32f3`, `920caa7`)
 
 ## [0.3.0 and earlier] - 2026-03-31 to 2026-06-29
 - Create GPX Doctor gem with parser, models, configuration, and specs (`c7371c7`)
