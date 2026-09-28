@@ -12,7 +12,7 @@ module GpxDoctor
     # same in 1.0 and 1.1 — only the namespace differs.
     GPX_NAMESPACES = [GPX_NS, GPX_10_NS].freeze
 
-    Result = Struct.new(:waypoints, :routes, :tracks, :metadata, :pois, keyword_init: true) do
+    Result = Struct.new(:waypoints, :routes, :tracks, :metadata, :pois, :analysis, keyword_init: true) do
       # The path described by the file, in order: <rtept> then <trkpt>.
       #
       # Standalone <wpt> elements are deliberately NOT part of it. They are
@@ -79,6 +79,7 @@ module GpxDoctor
       label_points(result) if @params[:label_interval]
       enhance_elevations(result) if @params[:enhance_elevation]
       result.pois = build_pois(result) if @params[:full_poi_data]
+      result.analysis = analyze_performance(result) if @params[:performance_analysis]
 
       result
     end
@@ -346,6 +347,10 @@ module GpxDoctor
 
       pois[:segments] = segments_pois unless segments_pois.empty?
       pois
+    end
+
+    def analyze_performance(result)
+      PerformanceAnalyzer.new.analyze(all_point_collections(result))
     end
 
     def collection_distance(points)

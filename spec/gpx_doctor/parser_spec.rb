@@ -1169,6 +1169,92 @@ RSpec.describe GpxDoctor::Parser do
     end
   end
 
+  context 'with performance_analysis: true' do
+    let(:performance_result) { described_class.parse(fixture_path, params: { performance_analysis: true }) }
+
+    it 'populates result.analysis with time metrics' do
+      expect(performance_result.analysis).to include(:total_time, :distance, :avg_speed, :top_speed, :speed_array)
+      expect(performance_result.analysis[:total_time]).to eq(300)
+      expect(performance_result.analysis[:distance]).to be > 0
+      expect(performance_result.analysis[:avg_speed]).to be > 0
+      expect(performance_result.analysis[:top_speed]).to eq(performance_result.analysis[:speed_array].max)
+      expect(performance_result.analysis[:speed_array]).not_to be_empty
+    end
+
+    it 'includes elevation metrics when elevation data is present' do
+      expect(performance_result.analysis).to include(:ascent, :descent, :elevation_change_array)
+      expect(performance_result.analysis[:ascent]).to eq(12)
+      expect(performance_result.analysis[:descent]).to eq(0)
+      expect(performance_result.analysis[:elevation_change_array]).to eq([7.0, 5.0])
+    end
+
+    it 'includes vertical speed metrics when time and elevation are present' do
+      expect(performance_result.analysis).to include(:top_vertical_speed, :vertical_speed_array)
+      expect(performance_result.analysis[:top_vertical_speed]).to be > 0
+      expect(performance_result.analysis[:vertical_speed_array]).not_to be_empty
+    end
+
+    it 'raises InvalidGpxError when no path point timestamps are provided' do
+      gpx_without_time = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.01" lon="16.01"><ele>120.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+
+      expect do
+        described_class.parse_string(gpx_without_time, params: { performance_analysis: true })
+      end.to raise_error(GpxDoctor::InvalidGpxError, /timestamps/)
+    end
+
+    it 'raises InvalidGpxError when only standalone waypoints have timestamps' do
+      gpx_with_wpt_time_only = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <wpt lat="48.2" lon="16.3">
+            <time>2024-06-01T08:00:00Z</time>
+          </wpt>
+          <rte>
+            <rtept lat="48.0" lon="16.0"><ele>100.0</ele></rtept>
+            <rtept lat="48.01" lon="16.01"><ele>120.0</ele></rtept>
+          </rte>
+        </gpx>
+      XML
+
+      expect do
+        described_class.parse_string(gpx_with_wpt_time_only, params: { performance_analysis: true })
+      end.to raise_error(GpxDoctor::InvalidGpxError, /timestamps/)
+    end
+
+    it 'returns only time metrics when elevation is missing on path points' do
+      gpx_without_ele = <<~XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="test">
+          <rte>
+            <rtept lat="48.0" lon="16.0"><time>2024-06-01T08:00:00Z</time></rtept>
+            <rtept lat="48.01" lon="16.01"><time>2024-06-01T08:05:00Z</time></rtept>
+          </rte>
+        </gpx>
+      XML
+
+      analysis = described_class.parse_string(gpx_without_ele, params: { performance_analysis: true }).analysis
+
+      expect(analysis).to include(:total_time, :distance, :avg_speed, :top_speed, :speed_array)
+      expect(analysis).not_to have_key(:ascent)
+      expect(analysis).not_to have_key(:descent)
+      expect(analysis).not_to have_key(:elevation_change_array)
+      expect(analysis).not_to have_key(:top_vertical_speed)
+      expect(analysis).not_to have_key(:vertical_speed_array)
+    end
+
+    it 'does not populate analysis when performance_analysis is not set' do
+      expect(result.analysis).to be_nil
+    end
+  end
+
   # -------------------------------------------------------------------
   # full_poi_data integration
   # -------------------------------------------------------------------
@@ -1258,5 +1344,3 @@ RSpec.describe GpxDoctor::Parser do
     end
   end
 end
-
-
