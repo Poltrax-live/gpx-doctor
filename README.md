@@ -172,6 +172,56 @@ result.pois
 - The `ele` key is omitted for points that have no elevation value.
 - Distance values respect the configured `unit_system` (kilometres for `:metric`, miles for `:imperial`).
 
+## Comparing tracks
+
+`GpxDoctor::Similarity` tells how much of a track follows an already known path. Every point of the compared data is measured against the reference path — against its points **and** against the stretches between them — and the returned value is the fraction of compared points lying within `tolerance` metres of it: `0.0` when none of them follow the path, `1.0` when all of them do. Comparing a file with itself therefore returns `1.0`.
+
+The order of the points is never taken into account, only where they lie: a track compared with its own reverse returns `1.0`, and a circular route matches the same lap whatever point it is started at.
+
+```ruby
+# Two GPX files
+GpxDoctor::Similarity.compare_files("original.gpx", "compared.gpx")   # => 0.94
+
+# A GPX file and a collection of coordinates
+GpxDoctor::Similarity.compare("original.gpx", [[48.21, 16.36], [48.22, 16.37]])
+GpxDoctor::Similarity.compare("original.gpx", [{ lat: 48.21, lon: 16.36 }])
+GpxDoctor::Similarity.compare("original.gpx", "SRID=4326;LINESTRING(16.36 48.21, 16.37 48.22)")
+
+# A GPX file and GeoJSON
+GpxDoctor::Similarity.geojson_compare("original.gpx", geojson)
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `tolerance` | Float | `25.0` | How far, in metres, a point may sit from the reference path and still count as following it |
+| `sample_interval` | Float | `nil` | When given, the compared points are treated as a continuous track and additional positions are tested every `sample_interval` metres along the straight lines between them |
+| `coordinate_order` | Symbol | `:lat_lon` | Order of bare numeric pairs such as `[48.21, 16.36]`; use `:lon_lat` for PostGIS/GeoJSON style coordinates (`compare` only) |
+
+```ruby
+GpxDoctor::Similarity.compare_files("original.gpx", "compared.gpx", tolerance: 50)
+GpxDoctor::Similarity.compare("original.gpx", [[16.36, 48.21]], coordinate_order: :lon_lat)
+
+# Judge a sparse track by the path it describes rather than by its few points
+GpxDoctor::Similarity.compare("original.gpx", coordinates, sample_interval: 25)
+```
+
+### Accepted input
+
+Both arguments of `compare` (and the first argument of `geojson_compare`) accept:
+
+- a path to a GPX, GeoJSON or WKT file, or the content of one as a String
+- a `GpxDoctor::Parser::Result`, `Route`, `Track` or `TrackSegment`
+- an array of coordinates, each of which may be a `Waypoint` (or any object answering to `lat`/`lon`, `latitude`/`longitude` or `x`/`y`, such as a PostGIS point), a `[lat, lon]` pair, a hash keyed by `lat`/`lon`, `latitude`/`longitude` or `x`/`y` (string or symbol keys), or a WKT point
+- a nested array (for example `[[[48.21, 16.36], …], […]]`), where each inner array is a separate track
+- WKT/EWKT geometries: `POINT`, `MULTIPOINT`, `LINESTRING`, `MULTILINESTRING`, `POLYGON` and `MULTIPOLYGON`, with coordinates read as `lon lat`
+- GeoJSON, as a Hash or a JSON string; `geojson_compare` accepts the same and always reads positions as `[lon, lat]` per RFC 7946
+
+Standalone `<wpt>` elements — and isolated GeoJSON points — are points of interest rather than part of a path, so they are ignored on both sides unless the document holds nothing else. Distances use the same flat-earth approximation as the rest of the gem and are always expressed in metres, regardless of the configured `unit_system`.
+
+Unsupported or malformed input raises `ArgumentError`.
+
 ## Building GPX files
 
 The `GpxDoctor::Builder` class generates GPX 1.1 XML from a `Result` object (the same structure returned by the parser).

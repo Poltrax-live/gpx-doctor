@@ -2,6 +2,9 @@
 
 This changelog is based on repository commit history.
 
+## [0.9.0] - 2026-10-02
+- Add `GpxDoctor::Similarity` comparing a reference GPX path with another file, coordinate collection or GeoJSON document, regardless of the order the compared points come in
+
 ## [0.8.0] - 2026-09-28
 - Add performance analysis for activity GPX files with broader test coverage (`99e2e8f`, `2e4c2bd`)
 

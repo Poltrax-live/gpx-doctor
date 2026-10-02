@@ -26,6 +26,10 @@ require 'gpx_doctor/point_labeler'
 require 'gpx_doctor/parser'
 require 'gpx_doctor/builder'
 require 'gpx_doctor/geojson_builder'
+require 'gpx_doctor/similarity/geo'
+require 'gpx_doctor/similarity/path_index'
+require 'gpx_doctor/similarity/point_extractor'
+require 'gpx_doctor/similarity'
 
 module GpxDoctor
   class << self
