@@ -20,6 +20,9 @@ module GpxDoctor
       # Keeps the longitude cell size finite when cos(latitude) collapses to
       # zero next to the poles.
       MIN_COS_LAT = 0.01
+      # Cells are sized for the latitude band of the reference path; widening
+      # that band keeps them wide enough for queries sitting beyond it too.
+      LAT_MARGIN_DEG = 1.0
       # Upper bound on the segments produced by subdividing the reference path.
       # It is only reached by extreme tolerance/length combinations, where it
       # trades bigger grid cells (more candidates per query) for bounded memory.
@@ -61,9 +64,16 @@ module GpxDoctor
         cell_meters = [tolerance, total_length / MAX_SEGMENTS].max
 
         @cell_lat_deg = cell_meters / METERS_PER_DEGREE
-        @cell_lon_deg = cell_meters / (METERS_PER_DEGREE * [Math.cos(max_abs_lat * Geo::DEG_TO_RAD), MIN_COS_LAT].max)
+        @cell_lon_deg = cell_meters / (METERS_PER_DEGREE * narrowest_cos_lat(max_abs_lat))
 
         collections.each { |points| index_collection(points, cell_meters) }
+      end
+
+      # Cells must stay at least +tolerance+ metres wide for the 3x3 block
+      # around a query to cover everything within the tolerance, so the
+      # longitude size is computed for the narrowest degree of the band.
+      def narrowest_cos_lat(max_abs_lat)
+        [Math.cos([max_abs_lat + LAT_MARGIN_DEG, 90.0].min * Geo::DEG_TO_RAD), MIN_COS_LAT].max
       end
 
       # [total path length in metres, greatest absolute latitude] — the first
