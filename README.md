@@ -176,6 +176,8 @@ result.pois
 
 `GpxDoctor::Similarity` tells how much of a track follows an already known path. Every point of the compared data is measured against the reference path — against its points **and** against the stretches between them — and the returned value is the fraction of compared points lying within `tolerance` metres of it: `0.0` when none of them follow the path, `1.0` when all of them do. Comparing a file with itself therefore returns `1.0`.
 
+The order of the points is never taken into account, only where they lie: a track compared with its own reverse returns `1.0`, and a circular route matches the same lap whatever point it is started at.
+
 ```ruby
 # Two GPX files
 GpxDoctor::Similarity.compare_files("original.gpx", "compared.gpx")   # => 0.94

@@ -22,6 +22,20 @@ RSpec.describe GpxDoctor::Similarity do
     path
   end
 
+  def reversed_file(dir, lat_shift: 0.0, name: 'reversed.gpx')
+    result = GpxDoctor::Parser.parse(fixture_path)
+    result.points.each { |point| point.lat += lat_shift }
+    result.routes.each { |route| route.points = route.points.reverse }
+    result.tracks.each do |track|
+      track.segments = track.segments.reverse
+      track.segments.each { |segment| segment.points = segment.points.reverse }
+    end
+
+    path = File.join(dir, name)
+    GpxDoctor::Builder.build_file(result, path)
+    path
+  end
+
   describe '.compare_files' do
     it 'returns 1.0 when a file is compared with itself' do
       expect(described_class.compare_files(fixture_path, fixture_path)).to eq(1.0)
@@ -203,6 +217,86 @@ RSpec.describe GpxDoctor::Similarity do
     end
   end
 
+  describe 'point order' do
+    # A square lap of roughly 1.1 km a side, closed by repeating its first point
+    # the way a recorded loop does.
+    let(:circular_route) do
+      [[48.20, 16.30], [48.21, 16.30], [48.21, 16.31], [48.20, 16.31], [48.20, 16.30]]
+    end
+
+    it 'returns 1.0 for a file compared with its reversed copy' do
+      Dir.mktmpdir do |dir|
+        reversed = reversed_file(dir)
+        expect(described_class.compare_files(fixture_path, reversed)).to eq(1.0)
+        expect(described_class.compare_files(reversed, fixture_path)).to eq(1.0)
+      end
+    end
+
+    it 'keeps a reversed copy at 1.0 when the stretches between points count too' do
+      Dir.mktmpdir do |dir|
+        reversed = reversed_file(dir)
+        expect(described_class.compare_files(fixture_path, reversed, sample_interval: 50)).to eq(1.0)
+      end
+    end
+
+    it 'still misses a reversed copy that leaves the path' do
+      Dir.mktmpdir do |dir|
+        far = reversed_file(dir, lat_shift: 1.0)
+        expect(described_class.compare_files(fixture_path, far)).to eq(0.0)
+      end
+    end
+
+    it 'returns 1.0 for the GeoJSON of a reversed copy' do
+      Dir.mktmpdir do |dir|
+        geojson = GpxDoctor::GeoJsonBuilder.build(GpxDoctor::Parser.parse(reversed_file(dir)))
+        expect(described_class.geojson_compare(fixture_path, geojson)).to eq(1.0)
+      end
+    end
+
+    it 'returns 1.0 for a reversed array of coordinates' do
+      coordinates = [[48.21, 16.36], [48.215, 16.365], [48.22, 16.37]]
+      expect(described_class.compare(fixture_path, coordinates.reverse, sample_interval: 50)).to eq(1.0)
+    end
+
+    it 'ignores the order the compared points come in' do
+      coordinates = [[48.21, 16.36], [48.24, 16.39], [48.23, 16.38], [48.22, 16.37]]
+      expect(described_class.compare(fixture_path, coordinates)).to eq(1.0)
+    end
+
+    it 'returns 1.0 for a track that doubles back on itself' do
+      there = [[48.23, 16.38], [48.235, 16.385], [48.24, 16.39]]
+      there_and_back = there + there[0..-2].reverse
+      expect(described_class.compare(fixture_path, there_and_back, sample_interval: 50)).to eq(1.0)
+    end
+
+    it 'returns 1.0 for a circular route ridden the other way round' do
+      expect(described_class.compare(circular_route, circular_route.reverse, sample_interval: 50)).to eq(1.0)
+    end
+
+    it 'returns 1.0 for a circular route started at another of its points' do
+      rotated = circular_route[0..-2].rotate(2)
+      rotated += [rotated.first]
+
+      expect(described_class.compare(circular_route, rotated, sample_interval: 50)).to eq(1.0)
+      expect(described_class.compare(rotated, circular_route, sample_interval: 50)).to eq(1.0)
+    end
+
+    it 'returns 1.0 for a circular route started between two of its points' do
+      # Halfway up the first side of the lap, so the start is not one of the
+      # recorded points at all.
+      halfway = [48.205, 16.30]
+      rotated = [halfway] + circular_route[1..-1] + [halfway]
+
+      expect(described_class.compare(circular_route, rotated, sample_interval: 50)).to eq(1.0)
+      expect(described_class.compare(circular_route, rotated.reverse, sample_interval: 50)).to eq(1.0)
+    end
+
+    it 'still misses a circular route that runs beside the lap' do
+      beside = circular_route.reverse.map { |lat, lon| [lat, lon + 0.0015] } # ~110 m east
+      expect(described_class.compare(circular_route, beside, sample_interval: 50)).to be < 0.5
+    end
+  end
+
   describe '.geojson_compare' do
     let(:geojson) { GpxDoctor::GeoJsonBuilder.build(GpxDoctor::Parser.parse(fixture_path)) }
 
@@ -263,6 +357,20 @@ RSpec.describe GpxDoctor::Similarity do
 
     it 'fully matches a long activity against itself' do
       expect(described_class.compare_files(gory_path, gory_path)).to eq(1.0)
+    end
+
+    it 'fully matches a long activity against its reversed copy' do
+      Dir.mktmpdir do |dir|
+        result = GpxDoctor::Parser.parse(gory_path)
+        result.tracks.each do |track|
+          track.segments = track.segments.reverse
+          track.segments.each { |segment| segment.points = segment.points.reverse }
+        end
+
+        reversed = File.join(dir, 'gory_reversed.gpx')
+        GpxDoctor::Builder.build_file(result, reversed)
+        expect(described_class.compare_files(gory_path, reversed)).to eq(1.0)
+      end
     end
 
     it 'does not match an unrelated activity' do
