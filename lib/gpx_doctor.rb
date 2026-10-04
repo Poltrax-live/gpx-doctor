@@ -30,6 +30,10 @@ require 'gpx_doctor/similarity/geo'
 require 'gpx_doctor/similarity/path_index'
 require 'gpx_doctor/similarity/point_extractor'
 require 'gpx_doctor/similarity'
+require 'gpx_doctor/transplant/matcher'
+require 'gpx_doctor/transplant'
+require 'gpx_doctor/transplant/coordinates'
+require 'gpx_doctor/transplant/geo_json'
 
 module GpxDoctor
   class << self
