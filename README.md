@@ -222,6 +222,49 @@ Standalone `<wpt>` elements — and isolated GeoJSON points — are points of in
 
 Unsupported or malformed input raises `ArgumentError`.
 
+## Transplanting a route section
+
+`GpxDoctor::Transplant` replaces part of an original route with a "transplant" route: it finds the original point closest to the transplant's start and the one closest to its end, then replaces everything between those two points (inclusive) with the transplant. Given an original route `n1, n2, …, n9` and a transplant `m1, m2, m3` where `m1` sits close to `n2` and `m3` close to `n8`, the result is `n1, m1, m2, m3, n9`.
+
+Three classes cover the different ways a route can be represented; each returns a new value and never mutates its input.
+
+### GPX files
+
+```ruby
+# original.gpx: n1, n2, ..., n9 — transplant.gpx: m1, m2, m3 (m1 close to n2, m3 close to n8)
+result = GpxDoctor::Transplant.graft('original.gpx', 'transplant.gpx')
+result.routes.first.points # => [n1, m1, m2, m3, n9]
+
+GpxDoctor::Builder.build_file(result, 'output.gpx')
+```
+
+`graft` accepts a file path, GPX XML, or an already parsed `GpxDoctor::Parser::Result` for both arguments, and returns a new `Result`. It operates on the single route or track segment that best matches the transplant; a file with several populated routes/segments is supported as long as the transplant only attaches to one of them.
+
+### An array of points
+
+```ruby
+GpxDoctor::Transplant::Coordinates.graft(route, transplant)
+```
+
+`route` and `transplant` accept the same point formats as `Similarity#compare`'s second argument (`Waypoint`s, `[lat, lon]` pairs, hashes keyed by `lat`/`lon`, `latitude`/`longitude` or `x`/`y`, or anything else answering to those). The returned array holds the original point objects/values, never reconstructed coordinates. Pass `coordinate_order: :lon_lat` for bare numeric pairs in `[lon, lat]` order.
+
+### GeoJSON
+
+```ruby
+GpxDoctor::Transplant::GeoJson.graft(route_geojson, transplant_geojson)
+# => { type: "Feature", properties: nil, geometry: { type: "LineString", coordinates: [...] } }
+```
+
+Accepts a Hash, a JSON string, or a path to a JSON file for both arguments. Each document must describe exactly one line: a bare `LineString` geometry, a `Feature` wrapping one, or a `FeatureCollection` holding exactly one `LineString` feature (other features, such as POI points, are ignored). Positions are read and written as `[longitude, latitude]` per RFC 7946, altitude included when present.
+
+### Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `tolerance` | Float or `nil` | `25.0` | How far, in metres, the transplant's start and end may sit from the original route; raises `ArgumentError` if exceeded. Pass `nil` to always graft onto the nearest points regardless of distance. |
+
+`ArgumentError` is also raised when either route holds no points, or when the transplant's matched end comes before its matched start on the original route.
+
 ## Building GPX files
 
 The `GpxDoctor::Builder` class generates GPX 1.1 XML from a `Result` object (the same structure returned by the parser).
